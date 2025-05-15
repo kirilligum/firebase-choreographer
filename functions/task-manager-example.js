@@ -1,15 +1,15 @@
 const admin = require("firebase-admin");
 const { logger } = require("firebase-functions");
 const {
-  initializeTaskManager,
+  initializeChoreographer,
   createTaskWatcher,
   createChildTasks,
   DependencyNotReadyError,
 } = require("./firebase-promise");
 
-// Initialize Admin & Task Manager
+// Initialize Admin & Choreographer
 if (!admin.apps.length) admin.initializeApp();
-initializeTaskManager(admin, { logger, tasksPathPattern: "tasks/{taskId}" });
+initializeChoreographer(admin, { logger, tasksPathPattern: "tasks/{taskId}" });
 
 // Task A: spawns B & C
 async function taskA(event) {

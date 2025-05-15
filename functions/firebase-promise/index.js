@@ -15,16 +15,16 @@ let packageLoggerInstance = console;
  * @param {object} options - Configuration options:
  *                           { logger?: object, tasksPathPattern: string }.
  */
-function initializeTaskManager(adminInstance, options = {}) {
+function initializeChoreographer(adminInstance, options = {}) {
   if (!adminInstance) {
-    throw new Error("Firebase Admin instance is required for initializeTaskManager.");
+    throw new Error("Firebase Admin instance is required for initializeChoreographer.");
   }
   if (!adminInstance.firestore) {
     throw new Error("Invalid Firebase Admin instance: firestore service not available.");
   }
   const { logger, tasksPathPattern } = options;
   if (!tasksPathPattern) {
-    throw new Error("tasksPathPattern is required in initializeTaskManager options.");
+    throw new Error("tasksPathPattern is required in initializeChoreographer options.");
   }
   dbInstance = adminInstance.firestore();
   packageLoggerInstance = logger || console;
@@ -37,7 +37,7 @@ function initializeTaskManager(adminInstance, options = {}) {
  */
 function _getDbInstance() {
   if (!dbInstance) {
-    throw new Error("Task manager not initialized. Call initializeTaskManager first.");
+    throw new Error("Choreographer not initialized. Call initializeChoreographer first.");
   }
   return dbInstance;
 }
@@ -50,7 +50,7 @@ function _getLoggerInstance() {
 }
 
 module.exports = {
-  initializeTaskManager,
+  initializeChoreographer,
   createTaskWatcher,
   createChildTasks,
   DependencyNotReadyError,

@@ -103,13 +103,13 @@ Import and initialize the Choreographer in your Functions entrypoint:
 ```js
 const admin = require('firebase-admin');
 const { logger } = require('firebase-functions');
-const { initializeTaskManager, createTaskWatcher } = require('firebase-choreographer');
+const { initializeChoreographer, createTaskWatcher } = require('firebase-choreographer');
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-initializeTaskManager(admin, {
+initializeChoreographer(admin, {
   logger,
   tasksPathPattern: 'tasks/{taskId}',
 });
@@ -144,7 +144,7 @@ exports.taskManager = createTaskWatcher(userTaskHandlers, {
 
 ## API Reference
 
-### initializeTaskManager(adminApp, options)
+### initializeChoreographer(adminApp, options)
 
 Initializes the Choreographer with your Firebase Admin SDK and configuration.
 
