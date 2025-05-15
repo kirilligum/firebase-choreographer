@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-org/firebase-choreographer.git"
+    "url": "git+https://github.com/kirilligum/firebase-choreographer.git"
   },
   "keywords": [
     "firebase",
@@ -31,7 +31,7 @@
   "author": "Kirill Igumenshchev",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/your-org/firebase-choreographer/issues"
+    "url": "https://github.com/kirilligum/firebase-choreographer/issues"
   },
-  "homepage": "https://github.com/your-org/firebase-choreographer#readme"
+  "homepage": "https://github.com/kirilligum/firebase-choreographer#readme"
 }
