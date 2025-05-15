@@ -45,7 +45,7 @@ const userTaskHandlers = {
 };
 
  // Export the single Cloud Function
- exports.taskManager = createTaskWatcher(userTaskHandlers);
+ exports.choreographerExample = createTaskWatcher(userTaskHandlers);
  
  // HTTP function to start a task via an HTTPS trigger
  exports.startTask = require("firebase-functions").https.onRequest(

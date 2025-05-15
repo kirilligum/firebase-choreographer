@@ -90,7 +90,7 @@ You should see emulator logs showing Task A processing, spawning Tasks B & C, an
 
 - `functions/firebase-promise` ‑ Core package code  
 - `functions/task-watcher.js` ‑ Firestore trigger setup  
-- `examples/task-manager-example.js` ‑ Example showing A → (B, C) → D  
+- `functions/choreographer-example.js` ‑ Example showing A → (B, C) → D  
 - `firestore.rules` ‑ Security rules for the `tasks` collection  
 - `firestore.indexes.json` ‑ Index on the `status` field  
 
@@ -133,7 +133,7 @@ const userTaskHandlers = {
 Export the Firestore trigger:
 
 ```js
-exports.taskManager = createTaskWatcher(userTaskHandlers, {
+exports.choreographerExample = createTaskWatcher(userTaskHandlers, {
   globalFunctionOptions: {
     timeoutSeconds: 120,
     memory: '512MB',
@@ -199,7 +199,7 @@ service cloud.firestore {
 ### Importing the Package in Cloud Functions
 
 ```js
-const { initializeTaskManager, createTaskWatcher } = require('firebase-choreographer');
+const { initializeChoreographer, createTaskWatcher } = require('firebase-choreographer');
 ```
 
 ## Contributing

@@ -1,5 +1,5 @@
-const { taskManager, startTask } = require("./task-manager-example");
+const { choreographerExample, startTask } = require("./choreographer-example"); // Path will be updated by rename
 
 // Firebase function exports
-exports.taskManager = taskManager;
+exports.choreographerExample = choreographerExample;
 exports.startTask = startTask;
