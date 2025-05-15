@@ -8,7 +8,7 @@ Firebase Choreographer offers several key advantages for building robust and mai
 
 *   **Persistent State**: Task states are durably stored in Firestore. If a function instance crashes or your system restarts, tasks can resume from where they left off simply by updating their status in Firestore. This ensures that no work is lost and workflows can reliably continue.
 *   **Scalable Architecture**: Built on Firestore and Cloud Functions, Firebase Choreographer is designed for horizontal scalability. Firestore handles state management at scale, and Cloud Functions can process a high volume of tasks concurrently, allowing your workflows to grow with demand.
-*   **LLM-Friendly "Vibe-Coding"**: The core Firebase Choreographer codebase is tiny (classified as "tiny" in terms of code size that an LLM might need to consider). This small footprint means the essential logic of the library can be easily understood and managed within the context window of modern Large Language Models (LLMs). This makes it exceptionally conducive for AI coding assistants to understand, modify, and generate Firebase Choreographer-compatible code, facilitating a more intuitive "vibe-coding" experience.
+*   **LLM-Friendly "Vibe-Coding"**: The core Firebase Choreographer codebase is tiny (classified as "tiny" in terms of code size that an LLM might need to consider). This small footprint means the essential logic of the library can be easily understood and managed within the context window of modern Large Language Models (LLMs). This makes it exceptionally conducive for AI coding assistants to understand, modify, and generate Firebase Choreographer-compatible code, facilitating a more intuitive "vibe-coding" experience. For AI-assisted coding, you can even include the entire repository source in your context, as the core logic is contained in just a few small files.
 
 ### Comparison with Other Workflow Engines
 
@@ -37,12 +37,27 @@ The following table provides a high-level comparison of Firebase Choreographer w
 
 ## Installation
 
+To use Firebase Choreographer in your Firebase Functions project, install it via npm:
+
 ```bash
-git clone https://github.com/your-org/firebase-choreographer.git
-cd firebase-choreographer
-npm install
-cd functions
-npm install
+npm install firebase-choreographer
+```
+
+Then, in your `functions/package.json`, add it as a dependency:
+```json
+{
+  "dependencies": {
+    "firebase-choreographer": "^1.0.0" 
+  }
+}
+```
+And run `npm install` within your `functions` directory.
+
+Alternatively, for development or if you prefer to include the source directly (e.g., for "vibe-coding" with AI assistants, see below), you can clone the repository:
+```bash
+git clone https://github.com/kirilligum/firebase-choreographer.git
+# You can then copy the functions/firebase-choreographer and functions/task-watcher.js 
+# files into your project's functions directory.
 ```
 
 ## Setup Firebase CLI and Running with Emulator
