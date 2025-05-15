@@ -1,0 +1,2925 @@
+
+           Get started: write, test, and deploy your first functions
+
+   Stay organized with collections Save and categorize content based on
+   your preferences.
+
+   (2nd) 2nd gen (1st) 1st gen
+
+   To get started with Cloud Functions, try working through this tutorial,
+   which starts with the required setup tasks and works through creating,
+   testing, and deploying two related functions:
+     * An "add message" function that exposes a URL that accepts a text
+       value and writes it to Cloud Firestore.
+     * A "make uppercase" function that triggers on a Cloud Firestore
+       write and transforms the text to uppercase.
+
+   Here's the full sample code containing the functions:
+
+Node.js
+
+// The Cloud Functions for Firebase SDK to create Cloud Functions and triggers.
+const {logger} = require("firebase-functions");
+const {onRequest} = require("firebase-functions/v2/https");
+const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+
+// The Firebase Admin SDK to access Firestore.
+const {initializeApp} = require("firebase-admin/app");
+const {getFirestore} = require("firebase-admin/firestore");
+
+initializeApp();
+
+// Take the text parameter passed to this HTTP endpoint and insert it into
+// Firestore under the path /messages/:documentId/original
+exports.addmessage = onRequest(async (req, res) => {
+  // Grab the text parameter.
+  const original = req.query.text;
+  // Push the new message into Firestore using the Firebase Admin SDK.
+  const writeResult = await getFirestore()
+      .collection("messages")
+      .add({original: original});
+  // Send back a message that we've successfully written the message
+  res.json({result: `Message with ID: ${writeResult.id} added.`});
+});
+
+// Listens for new messages added to /messages/:documentId/original
+// and saves an uppercased version of the message
+// to /messages/:documentId/uppercase
+exports.makeuppercase = onDocumentCreated("/messages/{documentId}", (event) => {
+  // Grab the current value of what was written to Firestore.
+  const original = event.data.data().original;
+
+  // Access the parameter `{documentId}` with `event.params`
+  logger.log("Uppercasing", event.params.documentId, original);
+
+  const uppercase = original.toUpperCase();
+
+  // You must return a Promise when performing
+  // asynchronous tasks inside a function
+  // such as writing to Firestore.
+  // Setting an 'uppercase' field in Firestore document returns a Promise.
+  return event.data.ref.set({uppercase}, {merge: true});
+});
+
+   [931]index.js
+
+
+Python
+
+# The Cloud Functions for Firebase SDK to create Cloud Functions and set up trig
+gers.
+from firebase_functions import firestore_fn, https_fn
+
+# The Firebase Admin SDK to access Cloud Firestore.
+from firebase_admin import initialize_app, firestore
+import google.cloud.firestore
+
+app = initialize_app()
+
+
+@https_fn.on_request()
+def addmessage(req: https_fn.Request) -> https_fn.Response:
+    """Take the text parameter passed to this HTTP endpoint and insert it into
+    a new document in the messages collection."""
+    # Grab the text parameter.
+    original = req.args.get("text")
+    if original is None:
+        return https_fn.Response("No text parameter provided", status=400)
+
+    firestore_client: google.cloud.firestore.Client = firestore.client()
+
+    # Push the new message into Cloud Firestore using the Firebase Admin SDK.
+    _, doc_ref = firestore_client.collection("messages").add({"original": origin
+al})
+
+    # Send back a message that we've successfully written the message
+    return https_fn.Response(f"Message with ID {doc_ref.id} added.")
+
+
+@firestore_fn.on_document_created(document="messages/{pushId}")
+def makeuppercase(event: firestore_fn.Event[firestore_fn.DocumentSnapshot | None
+]) -> None:
+    """Listens for new documents to be added to /messages. If the document has
+    an "original" field, creates an "uppercase" field containg the contents of
+    "original" in upper case."""
+
+    # Get the value of "original" if it exists.
+    if event.data is None:
+        return
+    try:
+        original = event.data.get("original")
+    except KeyError:
+        # No "original" field, so do nothing.
+        return
+
+    # Set the "uppercase" field.
+    print(f"Uppercasing {event.params['pushId']}: {original}")
+    upper = original.upper()
+    event.data.reference.update({"uppercase": upper})
+
+   [932]main.py
+
+
+About this tutorial
+
+   We've chosen Cloud Firestore and HTTP-triggered functions for this
+   sample in part because these background triggers can be thoroughly
+   tested through the [933]Firebase Local Emulator Suite. This toolset
+   also supports Realtime Database, Cloud Storage, PubSub, Auth, and HTTP
+   callable triggers. Other types of background triggers such as Remote
+   Config and TestLab triggers can be [934]tested interactively using
+   toolsets not described in this page.
+
+   Note: You can emulate functions in any Firebase project, but to deploy
+   functions, your project must be on the [935]Blaze pricing plan. See
+   [936]Cloud Functions pricing.
+
+   The following sections of this tutorial detail the steps required to
+   build, test, and deploy the sample.
+
+Create a Firebase Project
+
+    1. In the [937]Firebase console, click Add project.
+          + To add Firebase resources to an existing Google Cloud project,
+            enter its project name or select it from the dropdown menu.
+          + To create a new project, enter the desired project name. You
+            can also optionally edit the project ID displayed below the
+            project name.
+        Firebase generates a unique ID for your Firebase project based
+            upon the name you give it. If you want to edit this project
+            ID, you must do it now as it cannot be altered after Firebase
+            provisions resources for your project. Visit [938]Understand
+            Firebase Projects to learn about how Firebase uses the project
+            ID.
+    2. If prompted, review and accept the [939]Firebase terms.
+    3. Click Continue.
+    4. (Optional) Set up Google Analytics for your project, which enables
+       you to have an optimal experience using any of the following
+       Firebase products:
+
+          + [940]Firebase Crashlytics
+          + [941]Firebase Cloud Messaging
+
+          + [942]Firebase In-App Messaging
+          + [943]Firebase Remote Config
+
+          + [944]Remote Config personalization
+          + [945]Firebase A/B Testing
+
+       Either select an existing [946]Google Analytics account or to
+       create a new account.
+       If you create a new account, select your [947]Analytics reporting
+       location, then accept the data sharing settings and Google
+       Analytics terms for your project.
+   You can always set up Google Analytics later in the [948]Integrations
+       tab of your settings Project settings.
+    5. Click Create project (or Add Firebase, if you're using an existing
+       Google Cloud project).
+
+   Firebase automatically provisions resources for your Firebase project.
+   When the process completes, you'll be taken to the overview page for
+   your Firebase project in the Firebase console.
+
+Set up your environment and the Firebase CLI
+
+Node.js
+
+   You'll need a [949]Node.js environment to write functions, and you'll
+   need the Firebase CLI to deploy functions to the Cloud Functions
+   runtime. For installing Node.js and [950]npm, [951]Node Version Manager
+   is recommended.
+
+   Important: Cloud Functions and the Firebase CLI fully support Node.js
+   versions 18 and 20, with preview-level support for version 22. Versions
+   14 and 16 are deprecated and will be decommissioned in early 2025
+   (currently, deployment with these deprecated versions is disabled). See
+   [952]Set runtime options for important information regarding ongoing
+   support for these versions of Node.js.
+
+   Once you have Node.js and npm installed, [953]install the Firebase CLI
+   via your preferred method. To install the CLI via npm, use:
+
+   npm install -g firebase-tools
+
+   This installs the globally available firebase command. If the command
+   fails, you may need to [954]change npm permissions. To update to the
+   latest version of firebase-tools, rerun the same command.
+
+   In many cases, new features and bug fixes are available only with the
+   latest version of the Firebase CLI and the firebase-functions SDK. It's
+   a good practice to frequently update both the Firebase CLI and the SDK
+   with these commands inside the functions folder of your Firebase
+   project:
+npm install firebase-functions@latest firebase-admin@latest --save
+npm install -g firebase-tools
+
+Python
+
+   You'll need a [955]Python environment to write functions, and you'll
+   need the Firebase CLI to deploy functions to the Cloud Functions
+   runtime. We recommend using venv to isolate dependencies. Python
+   versions 3.10 and 3.11 are supported.
+
+   Once you have Python installed, [956]install the Firebase CLI via your
+   preferred method.
+
+   In many cases, new features and bug fixes are available only with the
+   latest version of the Firebase CLI and the firebase-functions SDK. It's
+   a good practice to frequently update both the Firebase CLI and the SDK
+   inside the functions folder of your Firebase project.
+
+Initialize your project
+
+   When you initialize Firebase SDK for Cloud Functions, you create an
+   empty project containing dependencies and some minimal sample code. If
+   you are using Node.js, you can choose either TypeScript or JavaScript
+   for composing functions. For the purposes of this tutorial, you'll also
+   need to initialize Cloud Firestore.
+
+   To initialize your project:
+    1. Run firebase login to log in via the browser and authenticate the
+       Firebase CLI.
+    2. Go to your Firebase project directory.
+    3. Run firebase init firestore. For this tutorial, you can accept the
+       default values when prompted for Firestore rules and index files.
+       If you haven't used Cloud Firestore in this project yet, you'll
+       also need to select a starting mode and location for Firestore as
+       described in [957]Get started with Cloud Firestore.
+    4. Run firebase init functions. The CLI prompts you to choose an
+       existing codebase or initialize and name a new one. When you're
+       just getting started, a single codebase in the default location is
+       adequate; later, as your implementation expands, you might want to
+       [958]organize functions in codebases.
+    5. The CLI gives you these options for language support:
+          + JavaScript
+          + TypeScript
+          + Python
+       For this tutorial, select JavaScript or Python. For authoring in
+       TypeScript, see [959]Write Functions with TypeScript.
+    6. The CLI gives you an option to install dependencies. This is safe
+       to decline if you want to manage dependencies in another way.
+
+   After these commands complete successfully, your project structure
+   looks like this:
+
+Node.js
+
+myproject
++- .firebaserc    # Hidden file that helps you quickly switch between
+|                 # projects with `firebase use`
+|
++- firebase.json  # Describes properties for your project
+|
++- functions/     # Directory containing all your functions code
+      |
+      +- .eslintrc.json  # Optional file containing rules for JavaScript linting
+.
+      |
+      +- package.json  # npm package file describing your Cloud Functions code
+      |
+      +- index.js      # Main source file for your Cloud Functions code
+      |
+      +- node_modules/ # Directory where your dependencies (declared in
+                        # package.json) are installed
+
+   For Node.js, the package.json file created during initialization
+   contains an important key: "engines": {"node": "18"}. This specifies
+   your Node.js version for writing and deploying functions. You can
+   [960]select other supported versions.
+
+Python
+
+myproject
++- .firebaserc    # Hidden file that helps you quickly switch between
+|                 # projects with `firebase use`
+|
++- firebase.json  # Describes properties for your project
+|
++- functions/     # Directory containing all your functions code
+      |
+      +- main.py      # Main source file for your Cloud Functions code
+      |
+      +- requirements.txt  #  List of the project's modules and packages
+      |
+      +- venv/ # Directory where your dependencies are installed
+
+Import the required modules and initialize an app
+
+   After you have completed the setup tasks, you can open the source
+   directory and start adding code as described in the following sections.
+   For this sample, your project must import the Cloud Functions and Admin
+   SDK modules. Add lines like the following to your source file:
+
+Node.js
+
+// The Cloud Functions for Firebase SDK to create Cloud Functions and triggers.
+const {logger} = require("firebase-functions");
+const {onRequest} = require("firebase-functions/v2/https");
+const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+
+// The Firebase Admin SDK to access Firestore.
+const {initializeApp} = require("firebase-admin/app");
+const {getFirestore} = require("firebase-admin/firestore");
+
+initializeApp();
+
+   [961]index.js
+
+
+Python
+
+# The Cloud Functions for Firebase SDK to create Cloud Functions and set up trig
+gers.
+from firebase_functions import firestore_fn, https_fn
+
+# The Firebase Admin SDK to access Cloud Firestore.
+from firebase_admin import initialize_app, firestore
+import google.cloud.firestore
+
+app = initialize_app()
+
+   [962]main.py
+
+
+   These lines load the required modules and initialize an admin app
+   instance from which Cloud Firestore changes can be made. Wherever
+   [963]Admin SDK support is available, as it is for FCM, Authentication,
+   and Firebase Realtime Database, it provides a powerful way to integrate
+   Firebase using Cloud Functions.
+
+   The Firebase CLI automatically installs the Firebase Admin SDK and
+   Firebase SDK for Cloud Functions modules when you initialize your
+   project. For more information about adding 3rd party libraries to your
+   project, see [964]Handle Dependencies.
+
+Add the "add message" function
+
+   For the "add message" function, add these lines to your source file:
+
+Node.js
+
+// Take the text parameter passed to this HTTP endpoint and insert it into
+// Firestore under the path /messages/:documentId/original
+exports.addmessage = onRequest(async (req, res) => {
+  // Grab the text parameter.
+  const original = req.query.text;
+  // Push the new message into Firestore using the Firebase Admin SDK.
+  const writeResult = await getFirestore()
+      .collection("messages")
+      .add({original: original});
+  // Send back a message that we've successfully written the message
+  res.json({result: `Message with ID: ${writeResult.id} added.`});
+});
+
+   [965]index.js
+
+
+Python
+
+@https_fn.on_request()
+def addmessage(req: https_fn.Request) -> https_fn.Response:
+    """Take the text parameter passed to this HTTP endpoint and insert it into
+    a new document in the messages collection."""
+    # Grab the text parameter.
+    original = req.args.get("text")
+    if original is None:
+        return https_fn.Response("No text parameter provided", status=400)
+
+    firestore_client: google.cloud.firestore.Client = firestore.client()
+
+    # Push the new message into Cloud Firestore using the Firebase Admin SDK.
+    _, doc_ref = firestore_client.collection("messages").add({"original": origin
+al})
+
+    # Send back a message that we've successfully written the message
+    return https_fn.Response(f"Message with ID {doc_ref.id} added.")
+
+   [966]main.py
+
+
+   The "add message" function is an HTTP endpoint. Any request to the
+   endpoint results in request and response objects passed to the the
+   request handler for your platform ([967]onRequest() or
+   [968]on_request).
+
+   HTTP functions are synchronous (similar to [969]callable functions), so
+   you should send a response as quickly as possible and defer work using
+   Cloud Firestore. The "add message" HTTP function passes a text value to
+   the HTTP endpoint and inserts it into the database under the path
+   /messages/:documentId/original.
+
+Add the "make uppercase" function
+
+   For the "make uppercase" function, add these lines to your source file:
+
+Node.js
+
+// Listens for new messages added to /messages/:documentId/original
+// and saves an uppercased version of the message
+// to /messages/:documentId/uppercase
+exports.makeuppercase = onDocumentCreated("/messages/{documentId}", (event) => {
+  // Grab the current value of what was written to Firestore.
+  const original = event.data.data().original;
+
+  // Access the parameter `{documentId}` with `event.params`
+  logger.log("Uppercasing", event.params.documentId, original);
+
+  const uppercase = original.toUpperCase();
+
+  // You must return a Promise when performing
+  // asynchronous tasks inside a function
+  // such as writing to Firestore.
+  // Setting an 'uppercase' field in Firestore document returns a Promise.
+  return event.data.ref.set({uppercase}, {merge: true});
+});
+
+   [970]index.js
+
+
+Python
+
+@firestore_fn.on_document_created(document="messages/{pushId}")
+def makeuppercase(event: firestore_fn.Event[firestore_fn.DocumentSnapshot | None
+]) -> None:
+    """Listens for new documents to be added to /messages. If the document has
+    an "original" field, creates an "uppercase" field containg the contents of
+    "original" in upper case."""
+
+    # Get the value of "original" if it exists.
+    if event.data is None:
+        return
+    try:
+        original = event.data.get("original")
+    except KeyError:
+        # No "original" field, so do nothing.
+        return
+
+    # Set the "uppercase" field.
+    print(f"Uppercasing {event.params['pushId']}: {original}")
+    upper = original.upper()
+    event.data.reference.update({"uppercase": upper})
+
+   [971]main.py
+
+
+   The "make uppercase" function executes when Cloud Firestore is written
+   to, defining the document to listen on. For performance reasons, you
+   should be as specific as possible.
+
+   Braces—for example, {documentId}—surround "parameters," wildcards that
+   expose their matched data in the callback. Cloud Firestore triggers the
+   callback whenever new messages are added.
+
+   Caution: Be careful to avoid any situation in which the function's
+   result actually retriggers the function, creating an infinite loop —
+   for example, a function triggered by writes to a specific Cloud
+   Firestore document that terminates by writing to that same path. Also
+   make sure to write functions in an [972]idempotent way, so that they
+   produce the same result if they run multiple times for a single event.
+
+   In Node.js, event-driven functions such as Cloud Firestore events are
+   asynchronous. The callback function should return either a null, an
+   Object, or a [973]Promise. If you do not return anything, the function
+   times out, signaling an error, and is retried. See [974]Sync, Async,
+   and Promises.
+
+Emulate execution of your functions
+
+   The [975]Firebase Local Emulator Suite allows you to build and test
+   apps on your local machine instead of deploying to a Firebase project.
+   Local testing during development is strongly recommended, in part
+   because it lowers the risk from coding errors that could potentially
+   incur cost in a production environment (for example, an infinite loop).
+
+   To emulate your functions:
+    1. Run firebase emulators:start and check the output for the URL of
+       the Emulator Suite UI. It defaults to [976]localhost:4000, but may
+       be hosted on a different port on your machine. Enter that URL in
+       your browser to open the Emulator Suite UI.
+    2. Check the output of the firebase emulators:start command for the
+       URL of the HTTP function. It will look similar to
+       http://localhost:5001/MY_PROJECT/us-central1/addMessage, except
+       that:
+         1. MY_PROJECT will be replaced with your project ID.
+         2. The port may be different on your local machine.
+    3. Add the query string ?text=uppercaseme to the end of the function's
+       URL. This should look something like:
+       http://localhost:5001/MY_PROJECT/us-central1/addMessage?text=upperc
+       aseme. Optionally, you can change the message "uppercaseme" to a
+       custom message.
+    4. Create a new message by opening the URL in a new tab in your
+       browser.
+    5. View the effects of the functions in the Emulator Suite UI:
+         1. In the Logs tab, you should see new logs indicating that your
+            HTTP functions ran successfully:
+            i functions: Beginning execution of "addMessage"
+            i functions: Beginning execution of "makeUppercase"
+         2. In the Firestore tab, you should see a document containing
+            your original message as well as the uppercased version of
+            your message (if it was originally "uppercaseme", you'll see
+            "UPPERCASEME").
+
+Deploy functions to a production environment
+
+   Once your functions are working as desired in the emulator, you can
+   proceed to deploying, testing, and running them in the production
+   environment. Keep in mind that to deploy in production, your project
+   must be on the [977]Blaze pricing plan. See [978]Cloud Functions
+   pricing.
+
+   To complete the tutorial, deploy your functions and then execute them.
+    1. Run this command to deploy your functions:
+ firebase deploy --only functions
+
+       After you run this command, the Firebase CLI outputs the URL for
+       any HTTP function endpoints. In your terminal, you should see a
+       line like the following:
+Function URL (addMessage): https://us-central1-MY_PROJECT.cloudfunctions.net/add
+Message
+
+       The URL contains your project ID as well as a region for the HTTP
+       function. Though you don't need to worry about it now, some
+       production HTTP functions should specify a [979]location to
+       minimize network latency.
+       If you encounter access errors such as "Unable to authorize access
+       to project," try checking your [980]project aliasing.
+    2. Using the URL output by the CLI, add a text query parameter, and
+       open it in a browser:
+https://us-central1-MY_PROJECT.cloudfunctions.net/addMessage?text=uppercasemetoo
+
+       The function executes and redirects the browser to the Firebase
+       console at the database location where the text string is stored.
+       This write event triggers the "make uppercase" function, which
+       writes an uppercase version of the string.
+
+   After deploying and executing functions, you can view logs in the
+   [981]Google Cloud console. If you need to [982]delete functions in
+   development or production, use the Firebase CLI.
+
+   In production, you may want to optimize function performance and
+   control costs by setting minimum and maximum numbers of instances to
+   run. See [983]Control scaling behavior for more information on these
+   runtime options.
+
+   Note: Deployment of functions from Firebase CLI is subject to rate
+   limits. See [984]Quota limits for Firebase CLI deployment.
+
+Next steps
+
+   In this documentation, you can learn more about how to [985]manage
+   functions for Cloud Functions as well as how to to handle all event
+   types supported by Cloud Functions.
+
+   To learn more about Cloud Functions, you could also do the following:
+     * Read about [986]use cases for Cloud Functions.
+     * Try the [987]Cloud Functions codelab.
+     * Review and run [988]code samples on GitHub
+
+
+                        Call functions via HTTP requests
+
+   Stay organized with collections Save and categorize content based on
+   your preferences.
+
+   (2nd) 2nd gen (1st) 1st gen
+
+   You can trigger a function through an HTTP request with a request
+   handler. This allows you to invoke a function through the following
+   supported HTTP methods: GET, POST, PUT, DELETE, and OPTIONS.
+
+Additional HTTP options
+
+   Option Description
+   region HTTP functions may specify an array of regions as well as a
+   single region. When multiple regions are specified, a separate function
+   instance will be deployed for each region.
+   timeoutSeconds (timeout_sec for Python) HTTP functions may specify a
+   timeout of up to one hour.
+   cors HTTP functions may specify CORS policies. You can set this to true
+   to allow all origins or a string, regex, or array to specify allowed
+   origins. Defaults to false/no CORS policies if not explicitly set.
+
+Configuring CORS (Cross-Origin Resource Sharing)
+
+   Use the cors option to control which origins can access your function.
+   By default, HTTP functions don't have CORS configured, meaning that any
+   cross-origin request to your function results in this error:
+request has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header
+ is present on the requested resource.
+
+   You can also explicitly disable CORS by setting the cors option to
+   false for your function.
+
+   To allow some cross-origin requests, but not all, you can pass a list
+   of specific domains or regular expressions that should be allowed. For
+   example, if you own the domains firebase.com and flutter.com, and
+   firebase.com can have many subdomains, you might want to set the cors
+   option to [/firebase\.com$/, 'flutter.com'] for Node.js or
+   [r'firebase\.com$', r'https://flutter\.com'] for Python:
+
+Node.js
+
+const { onRequest } = require("firebase-functions/v2/https");
+
+exports.sayHello = onRequest(
+  { cors: [/firebase\.com$/, "flutter.com"] },
+  (req, res) => {
+    res.status(200).send("Hello world!");
+  }
+);
+
+Python
+
+from firebase_functions import https_fn, options
+
+@https_fn.on_request(
+    cors=options.CorsOptions(
+        cors_origins=[r"firebase\.com$", r"https://flutter\.com"],
+        cors_methods=["get", "post"],
+    )
+)
+def say_hello(req: https_fn.Request) -> https_fn.Response:
+    return https_fn.Response("Hello world!")
+
+   If your function should be openly available, for example if it's
+   serving a public API or website, set the cors policy to true.
+
+Trigger a function with an HTTP request
+
+   Use the request handler for your platform ([931]onRequest() or
+   [932]on_request) to create a function that handles HTTP events.
+   Examples in this section are based on a "time server" sample that
+   triggers when you send an HTTP GET request to the functions endpoint.
+   The sample function retrieves the current server time, formats the time
+   as specified in a URL query parameter, and sends the result in the HTTP
+   response.
+
+Using request and response objects
+
+   The request object gives you access to the properties of the HTTP
+   request sent by the client, and the response object gives you a way to
+   send a response back to the client.
+
+Node.js
+
+exports.date = onRequest(
+    {timeoutSeconds: 1200, region: ["us-west1", "us-east1"]},
+    (req, res) => {
+// ...
+});
+
+Python
+
+@https_fn.on_request(cors=options.CorsOptions(cors_origins="*", cors_methods=["g
+et", "post"]))
+def date(req: https_fn.Request) -> https_fn.Response:
+    """Get the server's local date and time."""
+
+   [933]main.py
+
+
+   Important: Make sure that all HTTP functions terminate properly. By
+   terminating functions correctly, you can avoid excessive charges from
+   functions that run for too long.
+
+Using existing Express or Flask apps
+
+   Using the app as the argument for the request handler, you can pass a
+   full app to an HTTP function:
+
+Node.js
+
+const { onRequest } = require('firebase-functions/v2/https');
+
+const express = require('express');
+const app = express();
+
+// Add middleware to authenticate requests
+app.use(myMiddleware);
+
+// build multiple CRUD interfaces:
+app.get('/:id', (req, res) => res.send(Widgets.getById(req.params.id)));
+app.post('/', (req, res) => res.send(Widgets.create()));
+app.put('/:id', (req, res) => res.send(Widgets.update(req.params.id, req.body)))
+;
+app.delete('/:id', (req, res) => res.send(Widgets.delete(req.params.id)));
+app.get('/', (req, res) => res.send(Widgets.list()));
+
+// Expose Express API as a single Cloud Function:
+exports.widgets = onRequest(app);
+
+Python
+
+from firebase_admin import initialize_app, db
+from firebase_functions import https_fn
+import flask
+
+initialize_app()
+app = flask.Flask(__name__)
+
+# Build multiple CRUD interfaces:
+
+
+@app.get("/widgets")
+@app.get("/widgets/<id>")
+def get_widget(id=None):
+    if id is not None:
+        return db.reference(f"/widgets/{id}").get()
+    else:
+        return db.reference("/widgets").get()
+
+
+@app.post("/widgets")
+def add_widget():
+    new_widget = flask.request.get_data(as_text=True)
+    db.reference("/widgets").push(new_widget)
+    return flask.Response(status=201, response="Added widget")
+
+
+# Expose Flask app as a single Cloud Function:
+
+
+@https_fn.on_request()
+def httpsflaskexample(req: https_fn.Request) -> https_fn.Response:
+    with app.request_context(req.environ):
+        return app.full_dispatch_request()
+
+   [934]main.py
+
+
+Invoke an HTTP function
+
+   After you deploy an HTTP function, you can invoke it through its own
+   unique URL. Use the exact URL output from the CLI after deployment.
+
+   For example, the URL to invoke date() looks like this:
+https://us-central1-<project-id>.cloudfunctions.net/date
+
+   With Express and Flask app routing, the function name is added as a
+   prefix to the URL paths in the app you define.
+
+Read values from the request
+
+   In the date() function example, the function tests both the URL
+   parameter and the body for a format value to set the date/time format
+   to use:
+
+Node.js
+
+let format = req.query.format;
+format = req.body.format;
+
+   [935]index.js
+
+  Python
+
+format = req.args["format"] if "format" in req.args else None
+
+   [936]main.py
+
+
+Terminate HTTP Functions
+
+   After retrieving and formatting the server time, the date() function
+   concludes by sending the result in the HTTP response:
+
+Node.js
+
+   Always end an HTTP function with send(), redirect(), or end().
+   Otherwise, your function might continue to run and be forcibly
+   terminated by the system. See also [937]Sync, Async and Promises.
+const formattedDate = moment().format(`${format}`);
+logger.log("Sending formatted date:", formattedDate);
+res.status(200).send(formattedDate);
+
+   [938]index.js
+
+  Python
+
+formatted_date = datetime.now().strftime(format)
+print(f"Sending Formatted date: {formatted_date}")
+return https_fn.Response(formatted_date)
+
+   [939]main.py
+
+
+
+                            Cloud Firestore triggers
+
+   Stay organized with collections Save and categorize content based on
+   your preferences.
+
+   (2nd) 2nd gen (1st) 1st gen
+
+   With Cloud Functions, you can handle events in Cloud Firestore with no
+   need to update client code. You can make Cloud Firestore changes via
+   the document snapshot interface or via the [931]Admin SDK.
+
+   In a typical lifecycle, a Cloud Firestore function does the following:
+    1. Waits for changes to a particular document.
+    2. Triggers when an event occurs and performs its tasks.
+    3. Receives a data object that contains a snapshot of the data stored
+       in the specified document. For write or update events, the data
+       object contains two snapshots that represent the data state before
+       and after the triggering event.
+
+   Distance between the location of the Firestore instance and the
+   location of the function can create significant network latency. To
+   optimize performance, consider specifying the [932]function location
+   where applicable.
+
+Cloud Firestore function triggers
+
+   The Cloud Functions for Firebase SDK exports the following Cloud
+   Firestore event triggers to let you create handlers tied to specific
+   Cloud Firestore events:
+
+Node.js
+
+   Event Type Trigger
+   onDocumentCreated Triggered when a document is written to for the first
+   time.
+   onDocumentUpdated Triggered when a document already exists and has any
+   value changed.
+   onDocumentDeleted Triggered when a document is deleted.
+   onDocumentWritten Triggered when onDocumentCreated, onDocumentUpdated
+   or onDocumentDeleted is triggered.
+   onDocumentCreatedWithAuthContext onDocumentCreated with additional
+   authentication information
+   onDocumentWrittenWithAuthContext onDocumentWritten with additional
+   authentication information
+   onDocumentDeletedWithAuthContext onDocumentDeleted with additional
+   authentication information
+   onDocumentUpdatedWithAuthContext onDocumentUpdated with additional
+   authentication information
+
+Python (preview)
+
+   Event Type Trigger
+   on_document_created Triggered when a document is written to for the
+   first time.
+   on_document_updated Triggered when a document already exists and has
+   any value changed.
+   on_document_deleted Triggered when a document is deleted.
+   on_document_written Triggered when on_document_created,
+   on_document_updated or on_document_deleted is triggered.
+   on_document_created_with_auth_context on_document_created with
+   additional authentication information
+   on_document_updated_with_auth_context on_document_updated with
+   additional authentication information
+   on_document_deleted_with_auth_context on_document_deleted with
+   additional authentication information
+   on_document_written_with_auth_context on_document_written with
+   additional authentication information
+
+   Cloud Firestore events trigger only on document changes. An update to a
+   Cloud Firestore document where data is unchanged (a no-op write) does
+   not generate an update or write event. It is not possible to add events
+   to specific fields.
+
+   If you don't have a project enabled for Cloud Functions for Firebase
+   yet, then read [933]Get started with Cloud Functions for Firebase (2nd
+   gen) to configure and set up your Cloud Functions for Firebase project.
+
+Writing Cloud Firestore-triggered functions
+
+Define a function trigger
+
+   To define a Cloud Firestore trigger, specify a document path and an
+   event type:
+
+Node.js
+
+import {
+  onDocumentWritten,
+  onDocumentCreated,
+  onDocumentUpdated,
+  onDocumentDeleted,
+  Change,
+  FirestoreEvent
+} from "firebase-functions/v2/firestore";
+
+exports.myfunction = onDocumentWritten("my-collection/{docId}", (event) => {
+   /* ... */
+});
+
+Python (preview)
+
+from firebase_functions.firestore_fn import (
+  on_document_created,
+  on_document_deleted,
+  on_document_updated,
+  on_document_written,
+  Event,
+  Change,
+  DocumentSnapshot,
+)
+
+@on_document_created(document="users/{userId}")
+def myfunction(event: Event[DocumentSnapshot]) -> None:
+
+   Document paths can reference either a [934]specific document or a
+   [935]wildcard pattern.
+
+Specify a single document
+
+   If you want to trigger an event for any change to a specific document
+   then you can use the following function.
+
+Node.js
+
+import {
+  onDocumentWritten,
+  Change,
+  FirestoreEvent
+} from "firebase-functions/v2/firestore";
+
+exports.myfunction = onDocumentWritten("users/marie", (event) => {
+  // Your code here
+});
+
+Python (preview)
+
+from firebase_functions.firestore_fn import (
+  on_document_written,
+  Event,
+  Change,
+  DocumentSnapshot,
+)
+
+@on_document_written(document="users/marie")
+def myfunction(event: Event[Change[DocumentSnapshot]]) -> None:
+
+Specify a group of documents using wildcards
+
+   If you want to attach a trigger to a group of documents, such as any
+   document in a certain collection, then use a {wildcard} in place of the
+   document ID:
+
+Node.js
+
+import {
+  onDocumentWritten,
+  Change,
+  FirestoreEvent
+} from "firebase-functions/v2/firestore";
+
+exports.myfunction = onDocumentWritten("users/{userId}", (event) => {
+  // If we set `/users/marie` to {name: "Marie"} then
+  // event.params.userId == "marie"
+  // ... and ...
+  // event.data.after.data() == {name: "Marie"}
+});
+
+Python (preview)
+
+from firebase_functions.firestore_fn import (
+  on_document_written,
+  Event,
+  Change,
+  DocumentSnapshot,
+)
+
+@on_document_written(document="users/{userId}")
+def myfunction(event: Event[Change[DocumentSnapshot]]) -> None:
+  # If we set `/users/marie` to {name: "Marie"} then
+  event.params["userId"] == "marie"  # True
+  # ... and ...
+  event.data.after.to_dict() == {"name": "Marie"}  # True
+
+   In this example, when any field on any document in users is changed, it
+   matches a wildcard called userId.
+
+   If a document in users has subcollections and a field in one of those
+   subcollections' documents is changed, the userId wildcard is not
+   triggered.
+
+   Wildcard matches are extracted from the document path and stored into
+   event.params. You may define as many wildcards as you like to
+   substitute explicit collection or document IDs, for example:
+
+Node.js
+
+import {
+  onDocumentWritten,
+  Change,
+  FirestoreEvent
+} from "firebase-functions/v2/firestore";
+
+exports.myfunction = onDocumentWritten("users/{userId}/{messageCollectionId}/{me
+ssageId}", (event) => {
+    // If we set `/users/marie/incoming_messages/134` to {body: "Hello"} then
+    // event.params.userId == "marie";
+    // event.params.messageCollectionId == "incoming_messages";
+    // event.params.messageId == "134";
+    // ... and ...
+    // event.data.after.data() == {body: "Hello"}
+});
+
+Python (preview)
+
+from firebase_functions.firestore_fn import (
+  on_document_written,
+  Event,
+  Change,
+  DocumentSnapshot,
+)
+
+@on_document_written(document="users/{userId}/{messageCollectionId}/{messageId}"
+)
+def myfunction(event: Event[Change[DocumentSnapshot]]) -> None:
+  # If we set `/users/marie/incoming_messages/134` to {body: "Hello"} then
+  event.params["userId"] == "marie"  # True
+  event.params["messageCollectionId"] == "incoming_messages"  # True
+  event.params["messageId"] == "134"  # True
+  # ... and ...
+  event.data.after.to_dict() == {"body": "Hello"}
+
+   Your trigger must always point to a document, even if you're using a
+   wildcard. For example, users/{userId}/{messageCollectionId} is not
+   valid because {messageCollectionId} is a collection. However,
+   users/{userId}/{messageCollectionId}/{messageId} is valid because
+   {messageId} will always point to a document.
+
+Event Triggers
+
+Trigger a function when a new document is created
+
+   You can trigger a function to fire any time a new document is created
+   in a collection. This example function triggers every time a new user
+   profile is added:
+
+Node.js
+
+import {
+  onDocumentCreated,
+  Change,
+  FirestoreEvent
+} from "firebase-functions/v2/firestore";
+
+exports.createuser = onDocumentCreated("users/{userId}", (event) => {
+    // Get an object representing the document
+    // e.g. {'name': 'Marie', 'age': 66}
+    const snapshot = event.data;
+    if (!snapshot) {
+        console.log("No data associated with the event");
+        return;
+    }
+    const data = snapshot.data();
+
+    // access a particular field as you would any JS property
+    const name = data.name;
+
+    // perform more operations ...
+});
+
+   For additional authentication information, use
+   onDocumentCreatedWithAuthContext.
+
+Python (preview)
+
+from firebase_functions.firestore_fn import (
+  on_document_created,
+  Event,
+  DocumentSnapshot,
+)
+
+@on_document_created(document="users/{userId}")
+def myfunction(event: Event[DocumentSnapshot]) -> None:
+  # Get a dictionary representing the document
+  # e.g. {'name': 'Marie', 'age': 66}
+  new_value = event.data.to_dict()
+
+  # Access a particular field as you would any dictionary
+  name = new_value["name"]
+
+  # Perform more operations ...
+
+Trigger a function when a document is updated
+
+   You can also trigger a function to fire when a document is updated.
+   This example function fires if a user changes their profile:
+
+Node.js
+
+import {
+  onDocumentUpdated,
+  Change,
+  FirestoreEvent
+} from "firebase-functions/v2/firestore";
+
+exports.updateuser = onDocumentUpdated("users/{userId}", (event) => {
+    // Get an object representing the document
+    // e.g. {'name': 'Marie', 'age': 66}
+    const newValue = event.data.after.data();
+
+    // access a particular field as you would any JS property
+    const name = newValue.name;
+
+    // perform more operations ...
+});
+
+   For additional authentication information, use
+   onDocumentUpdatedWithAuthContext.
+
+Python (preview)
+
+from firebase_functions.firestore_fn import (
+  on_document_updated,
+  Event,
+  Change,
+  DocumentSnapshot,
+)
+
+@on_document_updated(document="users/{userId}")
+def myfunction(event: Event[Change[DocumentSnapshot]]) -> None:
+  # Get a dictionary representing the document
+  # e.g. {'name': 'Marie', 'age': 66}
+  new_value = event.data.after.to_dict()
+
+  # Access a particular field as you would any dictionary
+  name = new_value["name"]
+
+  # Perform more operations ...
+
+Trigger a function when a document is deleted
+
+   You can also trigger a function when a document is deleted. This
+   example function fires when a user deletes their user profile:
+
+Node.js
+
+import {
+  onDocumentDeleted,
+  Change,
+  FirestoreEvent
+} from "firebase-functions/v2/firestore";
+
+exports.deleteuser = onDocumentDeleted("users/{userId}", (event) => {
+    // Get an object representing the document
+    // e.g. {'name': 'Marie', 'age': 66}
+    const snap =  event.data;
+    const data =  snap.data();
+
+    // perform more operations ...
+});
+
+   For additional authentication information, use
+   onDocumentDeletedWithAuthContext.
+
+Python (preview)
+
+from firebase_functions.firestore_fn import (
+  on_document_deleted,
+  Event,
+  DocumentSnapshot,
+)
+
+@on_document_deleted(document="users/{userId}")
+def myfunction(event: Event[DocumentSnapshot|None]) -> None:
+  # Perform more operations ...
+
+Trigger a function for all changes to a document
+
+   If you don't care about the type of event being fired, you can listen
+   for all changes in a Cloud Firestore document using the "document
+   written" event trigger. This example function fires if a user is
+   created, updated, or deleted:
+
+Node.js
+
+import {
+  onDocumentWritten,
+  Change,
+  FirestoreEvent
+} from "firebase-functions/v2/firestore";
+
+exports.modifyuser = onDocumentWritten("users/{userId}", (event) => {
+    // Get an object with the current document values.
+    // If the document does not exist, it was deleted
+    const document =  event.data.after.data();
+
+    // Get an object with the previous document values
+    const previousValues =  event.data.before.data();
+
+    // perform more operations ...
+});
+
+   For additional authentication information, use
+   onDocumentWrittenWithAuthContext.
+
+Python (preview)
+
+from firebase_functions.firestore_fn import (
+  on_document_written,
+  Event,
+  Change,
+  DocumentSnapshot,
+)
+
+@on_document_written(document="users/{userId}")
+def myfunction(event: Event[Change[DocumentSnapshot | None]]) -> None:
+  # Get an object with the current document values.
+  # If the document does not exist, it was deleted.
+  document = (event.data.after.to_dict()
+              if event.data.after is not None else None)
+
+  # Get an object with the previous document values.
+  # If the document does not exist, it was newly created.
+  previous_values = (event.data.before.to_dict()
+                     if event.data.before is not None else None)
+
+  # Perform more operations ...
+
+Reading and Writing Data
+
+   When a function is triggered, it provides a snapshot of the data
+   related to the event. You can use this snapshot to read from or write
+   to the document that triggered the event, or use the Firebase Admin SDK
+   to access other parts of your database.
+
+Event Data
+
+Reading Data
+
+   When a function is triggered, you might want to get data from a
+   document that was updated, or get the data prior to update. You can get
+   the prior data by using event.data.before, which contains the document
+   snapshot before the update. Similarly, event.data.after contains the
+   document snapshot state after the update.
+
+Node.js
+
+exports.updateuser2 = onDocumentUpdated("users/{userId}", (event) => {
+    // Get an object with the current document values.
+    // If the document does not exist, it was deleted
+    const newValues =  event.data.after.data();
+
+    // Get an object with the previous document values
+    const previousValues =  event.data.before.data();
+});
+
+Python (preview)
+
+@on_document_updated(document="users/{userId}")
+def myfunction(event: Event[Change[DocumentSnapshot]]) -> None:
+  # Get an object with the current document values.
+  new_value = event.data.after.to_dict()
+
+  # Get an object with the previous document values.
+  prev_value = event.data.before.to_dict()
+
+   You can access properties as you would in any other object.
+   Alternatively, you can use the get function to access specific fields:
+
+Node.js
+
+// Fetch data using standard accessors
+const age = event.data.after.data().age;
+const name = event.data.after.data()['name'];
+
+// Fetch data using built in accessor
+const experience = event.data.after.data.get('experience');
+
+Python (preview)
+
+# Get the value of a single document field.
+age = event.data.after.get("age")
+
+# Convert the document to a dictionary.
+age = event.data.after.to_dict()["age"]
+
+Writing Data
+
+   Each function invocation is associated with a specific document in your
+   Cloud Firestore database. You can access that document in the snapshot
+   returned to your function.
+
+   The document reference includes methods like update(), set(), and
+   remove() so you can modify the document that triggered the function.
+
+Node.js
+
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+
+exports.countnamechanges = onDocumentUpdated('users/{userId}', (event) => {
+  // Retrieve the current and previous value
+  const data = event.data.after.data();
+  const previousData = event.data.before.data();
+
+  // We'll only update if the name has changed.
+  // This is crucial to prevent infinite loops.
+  if (data.name == previousData.name) {
+    return null;
+  }
+
+  // Retrieve the current count of name changes
+  let count = data.name_change_count;
+  if (!count) {
+    count = 0;
+  }
+
+  // Then return a promise of a set operation to update the count
+  return data.after.ref.set({
+    name_change_count: count + 1
+  }, {merge: true});
+
+});
+
+Python (preview)
+
+@on_document_updated(document="users/{userId}")
+def myfunction(event: Event[Change[DocumentSnapshot]]) -> None:
+  # Get the current and previous document values.
+  new_value = event.data.after
+  prev_value = event.data.before
+
+  # We'll only update if the name has changed.
+  # This is crucial to prevent infinite loops.
+  if new_value.get("name") == prev_value.get("name"):
+      return
+
+  # Retrieve the current count of name changes
+  count = new_value.to_dict().get("name_change_count", 0)
+
+  # Update the count
+  new_value.reference.update({"name_change_count": count + 1})
+
+   Warning: Any time you write to the same document that triggered a
+   function, you are at risk of creating an infinite loop. Use caution and
+   ensure that you safely exit the function when no change is needed.
+
+Access user authentication information
+
+   If you use one of the of the following event types, you can access user
+   authentication information about the principal that triggered the
+   event. This information is in addition to the information returned in
+   the base event.
+
+Node.js
+
+     * onDocumentCreatedWithAuthContext
+     * onDocumentWrittenWithAuthContext
+     * onDocumentDeletedWithAuthContext
+     * onDocumentUpdatedWithAuthContext
+
+Python (preview)
+
+     * on_document_created_with_auth_context
+     * on_document_updated_with_auth_context
+     * on_document_deleted_with_auth_context
+     * on_document_written_with_auth_context
+
+   For information about the data available in the authentication context,
+   see [936]Auth Context. The following example demonstrates how to
+   retrieve authentication information:
+
+Node.js
+
+import { onDocumentWrittenWithAuthContext } from "firebase-functions/v2/firestor
+e"
+
+exports.syncUser = onDocumentWrittenWithAuthContext("users/{userId}", (event) =>
+ {
+    const snapshot = event.data.after;
+    if (!snapshot) {
+        console.log("No data associated with the event");
+        return;
+    }
+    const data = snapshot.data();
+
+    // retrieve auth context from event
+    const { authType, authId } = event;
+
+    let verified = false;
+    if (authType === "system") {
+      // system-generated users are automatically verified
+      verified = true;
+    } else if (authType === "unknown" || authType === "unauthenticated") {
+      // admin users from a specific domain are verified
+      if (authId.endsWith("@example.com")) {
+        verified = true;
+      }
+    }
+
+    return data.after.ref.set({
+        created_by: authId,
+        verified,
+    }, {merge: true});
+});
+
+Python (preview)
+
+@on_document_updated_with_auth_context(document="users/{userId}")
+def myfunction(event: Event[Change[DocumentSnapshot]]) -> None:
+
+  # Get the current and previous document values.
+  new_value = event.data.after
+  prev_value = event.data.before
+
+  # Get the auth context from the event
+  user_auth_type = event.auth_type
+  user_auth_id = event.auth_id
+
+Data outside the trigger event
+
+   Cloud Functions execute in a trusted environment. They are authorized
+   as a service account on your project, and you can perform reads and
+   writes using the [937]Firebase Admin SDK:
+
+Node.js
+
+const { initializeApp } = require('firebase-admin/app');
+const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestor
+e');
+
+initializeApp();
+const db = getFirestore();
+
+exports.writetofirestore = onDocumentWritten("some/doc", (event) => {
+    db.doc('some/otherdoc').set({ ... });
+  });
+
+  exports.writetofirestore = onDocumentWritten('users/{userId}', (event) => {
+    db.doc('some/otherdoc').set({
+      // Update otherdoc
+    });
+  });
+
+Python (preview)
+
+from firebase_admin import firestore, initialize_app
+import google.cloud.firestore
+
+initialize_app()
+
+@on_document_written(document="some/doc")
+def myfunction(event: Event[Change[DocumentSnapshot | None]]) -> None:
+  firestore_client: google.cloud.firestore.Client = firestore.client()
+  firestore_client.document("another/doc").set({
+      # ...
+  })
+
+   Note: Reads and writes performed in Cloud Functions are not controlled
+   by your security rules, they can access any part of your database.
+
+Limitations
+
+   Note the following limitations for Cloud Firestore triggers for Cloud
+   Functions:
+     * Cloud Functions (1st gen) prerequisites an existing "(default)"
+       database in Firestore native mode. It does not support Cloud
+       Firestore named databases or Datastore mode. Please use Cloud
+       Functions (2nd gen) to configure events in such cases.
+     * Ordering is not guaranteed. Rapid changes can trigger function
+       invocations in an unexpected order.
+     * Events are delivered at least once, but a single event may result
+       in multiple function invocations. Avoid depending on exactly-once
+       mechanics, and write [938]idempotent functions.
+     * [939]Cloud Firestore in Datastore mode requires Cloud Functions
+       (2nd gen). Cloud Functions (1st gen) does not support Datastore
+       mode.
+     * A trigger is associated with a single database. You cannot create a
+       trigger that matches multiple databases.
+     * Deleting a database does not automatically delete any triggers for
+       that database. The trigger stops delivering events but continues to
+       exist until you [940]delete the trigger.
+     * If a matched event exceeds the [941]maximum request size, the event
+       might not be delivered to Cloud Functions (1st gen).
+          + Events not delivered because of request size are logged in
+            [942]platform logs and count towards the log usage for the
+            project.
+          + You can find these logs in the Logs Explorer with the message
+            "Event cannot deliver to Cloud function due to size exceeding
+            the limit for 1st gen..." of error severity. You can find the
+            function name under the functionName field. If the
+            receiveTimestamp field is still within an hour from now, you
+            can infer the actual event content by reading the document in
+            question with a snapshot before and after the timestamp.
+          + To avoid such cadence, you can:
+               o Migrate and upgrade to Cloud Functions (2nd gen)
+               o Downsize the document
+               o Delete the Cloud Functions in question
+          + You can turn off the logging itself using [943]exclusions but
+            note that the offending events will still not be delivered.
+
+                                Manage functions
+
+   Stay organized with collections Save and categorize content based on
+   your preferences.
+
+   (2nd) 2nd gen (1st) 1st gen
+
+   You can deploy, delete, and modify functions using Firebase CLI
+   commands or by setting runtime options in your functions source code.
+
+Deploy functions
+
+   To deploy functions, run this Firebase CLI command:
+firebase deploy --only functions
+
+   By default, the Firebase CLI deploys all of the functions inside your
+   source at the same time. If your project contains more than 5
+   functions, we recommend that you use the --only flag with specific
+   function names to deploy only the functions that you've edited.
+   [931]Deploying specific functions this way speeds up the deployment
+   process and helps you avoid running into deployment quotas. For
+   example:
+firebase deploy --only functions:addMessage,functions:makeUppercase
+
+   When deploying large numbers of functions, you may exceed the standard
+   quota and receive HTTP 429 or 500 error messages. To solve this, deploy
+   functions in groups of 10 or fewer.
+
+   See the [932]Firebase CLI reference for the full list of available
+   commands.
+
+   By default, the Firebase CLI looks in the functions/ folder for the
+   source code. If you prefer, you can [933]organize functions in
+   codebases or multiple sets of files.
+
+Delete functions
+
+   You can delete previously deployed functions in these ways:
+     * explicitly in the Firebase CLI with functions:delete
+     * explicitly in the [934]Google Cloud console.
+     * implicitly by removing the function from source prior to
+       deployment.
+
+   All deletion operations prompt you to confirm before removing the
+   function from production.
+
+   Explicit function deletion in the Firebase CLI supports multiple
+   arguments as well as functions groups, and allows you to specify a
+   function running in a particular region. Also, you can override the
+   confirmation prompt.
+# Delete all functions that match the specified name in all regions.
+firebase functions:delete myFunction
+
+# Delete a specified function running in a specific region.
+firebase functions:delete myFunction --region us-east-1
+
+# Delete more than one function
+firebase functions:delete myFunction myOtherFunction
+
+# Delete a specified functions group.
+firebase functions:delete groupA
+
+# Bypass the confirmation prompt.
+firebase functions:delete myFunction --force
+
+   With implicit function deletion, firebase deploy parses your source and
+   removes from production any functions that have been removed from the
+   file.
+
+Modify a function's name, region or trigger
+
+   If you are renaming or changing the regions or trigger for functions
+   that are handling production traffic, follow the steps in this section
+   to avoid losing events during modification. Before you follow these
+   steps, first ensure that your function is [935]idempotent, since both
+   the new version and the old version of your function will be running at
+   the same time during the change.
+
+Rename a function
+
+   To rename a function, create a new renamed version of the function in
+   your source and then run two separate deployment commands. The first
+   command deploys the newly named function, and the second command
+   removes the previously deployed version. For example, if you have an
+   HTTP-triggered webhook you'd like to rename, revise the code as
+   follows:
+
+Node.js
+
+// before
+const {onRequest}  = require('firebase-functions/v2/https');
+
+exports.webhook = onRequest((req, res) => {
+    res.send("Hello");
+});
+
+// after
+const {onRequest}  = require('firebase-functions/v2/https');
+
+exports.webhookNew = onRequest((req, res) => {
+    res.send("Hello");
+});
+
+Python
+
+# before
+from firebase_functions import https_fn
+
+@https_fn.on_request()
+def webhook(req: https_fn.Request) -> https_fn.Response:
+    return https_fn.Response("Hello world!")
+
+# after
+from firebase_functions import https_fn
+
+@https_fn.on_request()
+def webhook_new(req: https_fn.Request) -> https_fn.Response:
+    return https_fn.Response("Hello world!")
+
+   Then run the following commands to deploy the new function:
+# Deploy new function
+firebase deploy --only functions:webhookNew
+
+# Wait until deployment is done; now both functions are running
+
+# Delete webhook
+firebase functions:delete webhook
+
+Change a function's region or regions
+
+   If you are changing the specified [936]regions for a function that's
+   handling production traffic, you can prevent event loss by performing
+   these steps in order:
+    1. Rename the function, and change its region or regions as desired.
+    2. Deploy the renamed function, which results in temporarily running
+       the same code in both sets of regions.
+    3. Delete the previous function.
+
+   For example, if you have a Cloud Firestore-triggered function that is
+   currently in the default functions region of us-central1, and you want
+   to migrate it to asia-northeast1, you need to first modify your source
+   code to rename the function and revise the region.
+
+Node.js
+
+// before
+exports.firestoreTrigger = onDocumentCreated(
+  "my-collection/{docId}",
+  (event) => {},
+);
+
+// after
+exports.firestoreTriggerAsia = onDocumentCreated(
+  {
+    document: "my-collection/{docId}",
+    region: "asia-northeast1",
+  },
+  (event) => {},
+);
+
+   The updated code should specify the correct event filter (in this case
+   document) along with the region. See [937]Cloud Functions locations for
+   more information.
+
+Python
+
+# Before
+@firestore_fn.on_document_created("my-collection/{docId}")
+def firestore_trigger(event):
+    pass
+
+# After
+@firestore_fn.on_document_created("my-collection/{docId}",
+                                  region="asia-northeast1")
+def firestore_trigger_asia(event):
+    pass
+
+   Then deploy by running:
+firebase deploy --only functions:firestoreTriggerAsia
+
+   Now there are two identical functions running: firestoreTrigger is
+   running in us-central1, and firestoreTriggerAsia is running in
+   asia-northeast1.
+
+   Then, delete firestoreTrigger:
+firebase functions:delete firestoreTrigger
+
+   Now there is only one function - firestoreTriggerAsia, which is running
+   in asia-northeast1.
+
+Change a function's trigger type
+
+   As you develop your Cloud Functions for Firebase deployment over time,
+   you may need to change a function's trigger type for various reasons.
+   For example, you might want to change from one type of Firebase
+   Realtime Database or Cloud Firestore event to another type.
+
+   It is not possible to change a function's event type by just changing
+   the source code and running firebase deploy. To avoid errors, change a
+   function's trigger type by this procedure:
+    1. Modify the source code to include a new function with the desired
+       trigger type.
+    2. Deploy the function, which results in temporarily running both the
+       old and new functions.
+    3. Explicitly delete the old function from production using the
+       Firebase CLI.
+
+   For instance, if you had a function that was triggered when an object
+   was deleted, but then you enabled [938]object versioning and would like
+   to subscribe to the archive event instead, first rename the function
+   and edit it to have the new trigger type.
+
+Node.js
+
+// before
+const {onObjectDeleted} = require("firebase-functions/v2/storage");
+
+exports.objectDeleted = onObjectDeleted((event) => {
+    // ...
+});
+
+// after
+const {onObjectArchived} = require("firebase-functions/v2/storage");
+
+exports.objectArchived = onObjectArchived((event) => {
+    // ...
+});
+
+Python
+
+# before
+from firebase_functions import storage_fn
+
+@storage_fn.on_object_deleted()
+def object_deleted(event):
+  # ...
+
+# after
+from firebase_functions import storage_fn
+
+@storage_fn.on_object_archived()
+def object_archived(event):
+  # ...
+
+   Then run the following commands to create the new function first,
+   before deleting the old function:
+# Create new function objectArchived
+firebase deploy --only functions:objectArchived
+
+# Wait until deployment is done; now both objectDeleted and objectArchived are r
+unning
+
+# Delete objectDeleted
+firebase functions:delete objectDeleted
+
+Set runtime options
+
+   Cloud Functions for Firebase lets you select runtime options such as
+   the Node.js runtime version and per-function timeout, memory
+   allocation, and minimum/maximum function instances.
+
+   As a best practice, these options (except for Node.js version) should
+   be set on a configuration object inside the function code. This
+   [939]RuntimeOptions object is the source of truth for your function's
+   runtime options, and will override options set via any other method
+   (such as via the Google Cloud console or gcloud CLI).
+
+   If your development workflow involves manually setting runtime options
+   via Google Cloud console or gcloud CLI and you don't want these values
+   to be overridden on each deploy, set the preserveExternalChanges option
+   to true. With this option set to true, Firebase merges the runtime
+   options set in your code with the settings of the currently-deployed
+   version of your function with the following priority:
+    1. Option is set in functions code: override external changes.
+    2. Option is set to RESET_VALUE in functions code: override external
+       changes with the default value.
+    3. Option is not set in functions code, but is set in currently
+       deployed function: use the option specified in the deployed
+       function.
+
+   Using the preserveExternalChanges: true option is not recommended for
+   most scenarios because your code will no longer be the full source of
+   truth for runtime options for your functions. If you do use it, check
+   the Google Cloud console or use the gcloud CLI to view a function's
+   full configuration.
+
+Set Node.js version
+
+   The Firebase SDK for Cloud Functions allows a selection of Node.js
+   runtime. You can choose to run all functions in a project exclusively
+   on the runtime environment corresponding to one of these supported
+   Node.js versions:
+     * Node.js 22 (preview)
+     * Node.js 20
+     * Node.js 18
+
+   Node.js Versions 14 and 16 are deprecated and will be decommissioned in
+   early 2025. Deployment with these deprecated versions is disabled.
+
+   To set the Node.js version:
+
+   You can set the version in the engines field in the package.json file
+   that was created in your functions/ directory during initialization.
+   For example, to use only version 18, edit this line in package.json:
+  "engines": {"node": "20"}
+
+   If you are using Yarn package manager or have other specific
+   requirements for the engines field, you can set the runtime for the
+   Firebase SDK for Cloud Functions in firebase.json instead:
+  {
+    "functions": {
+      "runtime": "nodejs18" // or nodejs20
+    }
+  }
+
+   The CLI uses the value set in firebase.json in preference to any value
+   or range that you set separately in package.json.
+
+Upgrade your Node.js runtime
+
+   To upgrade your Node.js runtime:
+    1. Make sure your project is on the [940]Blaze pricing plan.
+    2. Make sure you are using Firebase CLI v11.18.0 or later.
+    3. Change the engines value in the package.json file that was created
+       in your functions/ directory during initialization. For example, if
+       you are upgrading from version 18 to version 20, the entry should
+       look like this: "engines": {"node": "20"}
+    4. Optionally, test your changes using the [941]Firebase Local
+       Emulator Suite.
+    5. Redeploy all functions.
+
+Set Python version
+
+   Firebase SDK for Cloud Functions versions 12.0.0 and higher allow
+   selection of the Python runtime. Set the runtime version in
+   firebase.json as shown:
+  {
+    "functions": {
+      "runtime": "python310" // or python311
+    }
+  }
+
+Control scaling behavior
+
+   By default, Cloud Functions for Firebase scales the number of running
+   instances based on the number of incoming requests, potentially scaling
+   down to zero instances in times of reduced traffic. However, if your
+   app requires reduced latency and you want to limit the number of cold
+   starts, you can change this default behavior by specifying a minimum
+   number of container instances to be kept warm and ready to serve
+   requests.
+
+   Similarly, you can set a maximum number to limit the scaling of
+   instances in response to incoming requests. Use this setting as a way
+   to control your costs or to limit the number of connections to a
+   backing service such as to a database.
+
+   Using these settings together with the per-instance concurrency setting
+   (new in 2nd gen), you can control and tune the scaling behavior for
+   your functions. The nature of your application and function will
+   determine which settings are most cost effective and will result in the
+   best performance.
+
+   For some apps with low traffic, a lower CPU option without
+   multi-concurrency is optimal. For others where cold starts are a
+   critical issue, setting high concurrency and minimum instances means
+   that a set of instances are always kept warm to handle large spikes in
+   traffic.
+
+   For smaller-scale apps that receive very little traffic, setting low
+   maximum instances with high concurrency means that the app can handle
+   bursts of traffic without incurring excessive costs. However, keep in
+   mind that when maximum instances is set too low, requests may be
+   dropped when the ceiling is reached.
+
+Allow concurrent requests
+
+   In Cloud Functions for Firebase (1st gen), each instance could handle
+   one request at a time, so scaling behavior was set only with minimum
+   and maximum instances settings. In addition to controlling the number
+   of instances, in Cloud Functions for Firebase (2nd gen) you can control
+   the number of requests each instance can serve at the same time with
+   the concurrency option. The default value for concurrency is 80, but
+   you can set it to any integer between 1 and 1000.
+
+   Functions with higher concurrency settings can absorb spikes of traffic
+   without cold starting because each instance likely has some headroom.
+   If an instance is configured to handle up to 50 concurrent requests but
+   is currently handling only 25, it can handle a spike of 25 additional
+   requests without requiring a new instance to cold start. By contrast,
+   with a concurrency setting of just 1, that spike in requests could lead
+   to 25 cold starts.
+
+   This simplified scenario demonstrates the potential efficiency gains of
+   concurrency. In reality, scaling behavior to optimize efficiency and
+   reduce cold starts with concurrency is more complex. Concurrency in
+   Cloud Functions for Firebase 2nd gen is powered by Cloud Run, and
+   follows Cloud Run's rules of [942]container instance autoscaling.
+
+   Important: Concurrency is available only to functions with at least 1
+   full CPU. Setting a function's CPU to a fractional value or setting CPU
+   to gcf_gen1 for a function with less than 2GB RAM will disable
+   concurrency. See [943]Override CPU defaults.
+
+   When experimenting with higher concurrency settings in Cloud Functions
+   for Firebase (2nd gen), keep the following in mind:
+     * Higher concurrency settings may require higher CPU and RAM for
+       optimal performance until reaching a practical limit. A function
+       that does heavy image or video processing, for example, might lack
+       the resources to handle 1000 concurrent requests, even when its CPU
+       and RAM settings are maximized.
+     * Since Cloud Functions for Firebase (2nd gen) is powered by Cloud
+       Run, you can refer also to Google Cloud guidance for
+       [944]optimizing concurrency.
+     * Make sure to test multiconcurrency thoroughly in a test environment
+       before switching to multiconcurrency in production.
+
+Keep a minimum number of instances warm
+
+   You can set minimum number of instances for a function in source code.
+   For example, this function sets a minimum of 5 instances to keep warm:
+
+Node.js
+
+const { onCall } = require("firebase-functions/v2/https");
+
+exports.getAutocompleteResponse = onCall(
+  {
+    // Keep 5 instances warm for this latency-critical function
+    minInstances: 5,
+  },
+  (event) => {
+    // Autocomplete user’s search term
+  }
+);
+
+Python
+
+@https_fn.on_call(min_instances=5)
+def get_autocomplete_response(event: https_fn.CallableRequest) -> https_fn.Respo
+nse:
+
+   Note: A minimum number of instances kept running incur billing costs at
+   idle rates. A function with the 1st gen default 256MiB memory
+   allocation costs about $3/mo (with [945]gcf_gen_1 CPU allocation and
+   concurrency disabled) or about $8/mo with 1CPU and concurrency enabled.
+   The Firebase CLI provides a cost estimate at deployment time for
+   functions with reserved minimum instances. Refer to [946]Cloud Run
+   pricing to calculate costs.
+
+   Here are some things to consider when setting a minimum instances
+   value:
+     * If Cloud Functions for Firebase scales your app above your setting,
+       you'll experience a cold start for each instance above that
+       threshold.
+     * Cold starts have the most severe effect on apps with spiky traffic.
+       If your app has spiky traffic and you set a value high enough that
+       cold starts are reduced on each traffic increase, you'll see
+       significantly reduced latency. For apps with constant traffic, cold
+       starts are not likely to severely affect performance.
+     * Setting minimum instances can make sense for production
+       environments, but should usually be avoided in testing
+       environments. To scale to zero in your test project but still
+       reduce cold starts in your production project, you can set a
+       minimum instances value in your parameterized configuration:
+
+Node.js
+const functions = require('firebase-functions/v1');
+const { defineInt, defineString } = require('firebase-functions/params');
+
+// Define some parameters
+const minInstancesConfig = defineInt('HELLO_WORLD_MININSTANCES');
+const welcomeMessage = defineString('WELCOME_MESSAGE');
+
+// To use configured parameters inside the config for a function, provide them
+// directly. To use them at runtime, call .value() on them.
+export const helloWorld = functions.runWith({ minInstances: minInstancesConfig})
+.https.onRequest(
+  (req, res) => {
+    res.send(`${welcomeMessage.value()}! I am a function.`);
+  }
+);
+
+Python
+MIN_INSTANCES = params.IntParam("HELLO_WORLD_MININSTANCES")
+WELCOME_MESSAGE = params.StringParam("WELCOME_MESSAGE")
+
+@https_fn.on_request(min_instances=MIN_INSTANCES.value())
+def get_autocomplete_response(event: https_fn.Request) -> https_fn.Response:
+    return https_fn.Response(f"{WELCOME_MESSAGE.value()} I'm a function.")
+
+Limit the maximum number of instances for a function
+
+   You can set a value for maximum instances in function source code. For
+   example, this function sets a limit of 100 instances in order to not
+   overwhelm a hypothetical legacy database:
+
+Node.js
+
+const { onMessagePublished } = require("firebase-functions/v2/pubsub");
+
+exports.mirrorevents = onMessagePublished(
+  { topic: "topic-name", maxInstances: 100 },
+  (event) => {
+    // Connect to legacy database
+  }
+);
+
+Python
+
+@pubsub_fn.on_message_published(topic="topic-name", max_instances=100)
+def mirrorevents(event: pubsub_fn.CloudEvent):
+#  Connect to legacy database
+
+   Note: for more control over invocation rates and throttling, consider
+   [947]task queue functions.
+
+   If an HTTP function is scaled up to the maximum instances limit, new
+   requests are queued for 30 seconds and then rejected with a response
+   code of 429 Too Many Requests if no instance is available by then.
+
+   To learn more about best practices for using maximum instances
+   settings, check out these [948]best practices for setting maximum
+   instances.
+
+Set timeout and memory allocation
+
+   In some cases, your functions may have special requirements for a long
+   timeout value or a large allocation of memory. You can set these values
+   either in the Google Cloud console or in the function source code
+   (Firebase only).
+
+   To set memory allocation and timeout in functions source code, use the
+   global options for memory and timeout seconds to customize the virtual
+   machine running your functions. For example, this Cloud Storage
+   function uses 1GiB of memory and times out after 300 seconds:
+
+Node.js
+
+exports.convertLargeFile = onObjectFinalized({
+  timeoutSeconds: 300,
+  memory: "1GiB",
+}, (event) => {
+  // Do some complicated things that take a lot of memory and time
+});
+
+Python
+
+@storage_fn.on_object_finalized(timeout_sec=300, memory=options.MemoryOption.GB_
+1)
+def convert_large_file(event: storage_fn.CloudEvent):
+# Do some complicated things that take a lot of memory and time.
+
+   The maximum value for timeout seconds is 540, or 9 minutes.
+
+   To set memory allocation and timeout in the Google Cloud console:
+    1. In the Google Cloud console select Cloud Functions for Firebase
+       from the left menu.
+    2. Select a function by clicking on its name in the functions list.
+    3. Click the Edit icon in the top menu.
+    4. Select a memory allocation from the drop-down menu labeled Memory
+       allocated.
+    5. Click More to display the advanced options, and enter a number of
+       seconds in the Timeout text box.
+    6. Click Save to update the function.
+
+Override CPU defaults
+
+   Up to 2GB of memory allocated, each function in Cloud Functions for
+   Firebase (2nd gen) defaults to one CPU, and then increases to 2 CPU for
+   4 and 8GB. Note that this is significantly different from 1st gen
+   default behavior in ways that could lead to slightly higher costs for
+   low-memory functions as expressed in the following table:
+   RAM allocated Version 1 default CPU (fractional) Version 2 default CPU
+   Price increase per ms
+   128MB         1/12                               1                     10.5x
+   256MB         1/6                                1                     5.3x
+   512MB         1/3                                1                     2.7x
+   1GB           7/12                               1                     1.6x
+   2GB           1                                  1                     1x
+   4GB           2                                  2                     1x
+   8GB           2                                  2                     1x
+   16 GB         n/a                                4                     n/a
+
+   If you prefer 1st gen behavior for your 2nd gen functions, set 1st gen
+   defaults as a global option:
+
+Node.js
+
+// Turn off Firebase defaults
+setGlobalOptions({ cpu: 'gcf_gen1' });
+
+Python
+
+# Use 1st gen behavior
+set_global_options(cpu="gcf_gen1")
+
+   For CPU-intensive functions, 2nd gen provides the flexibility to
+   configure additional CPU. You can boost CPU on a per-function basis as
+   shown:
+
+Node.js
+
+// Boost CPU in a function:
+export const analyzeImage = onObjectFinalized({ cpu: 2 }, (event) => {
+  // computer vision goes here
+});
+
+Python
+
+# Boost CPU in a function:
+@storage_fn.on_object_finalized(cpu=2)
+def analyze_image(event: storage_fn.CloudEvent):
+# computer vision goes here
+
+
+
+
+                             Handling dependencies
+
+   Stay organized with collections Save and categorize content based on
+   your preferences.
+
+   (nodejs) Node.js (python) Python
+
+   There are two ways to specify dependencies for Cloud Functions written
+   in Python: using the [931]pip package manager's requirements.txt file
+   or packaging local dependencies alongside your function.
+
+   Dependency specification using the Pipfile/Pipfile.lock standard is not
+   supported. Your project should not include these files.
+
+Specifying dependencies with pip
+
+   Dependencies in Python are managed with pip and expressed in a metadata
+   file called [932]requirements.txt. This file must be in the same
+   directory as the main.py file that contains your function code.
+
+   When you deploy or redeploy your function, Cloud Functions uses pip to
+   download and install the latest version of your dependencies as
+   declared in the requirements.txt file. The requirements.txt file
+   contains one line per package. Each line contains the package name, and
+   optionally, the requested version. For more details, see the
+   [933]requirements.txt reference.
+
+   To prevent your build from being affected by dependency version
+   changes, consider pinning your dependency packages to a specific
+   version.
+
+   The following is an example requirements.txt file:
+functions-framework
+requests==2.20.0
+numpy
+
+   The [934]Functions Framework is a required dependency for all
+   functions. Although Cloud Functions installs it on your behalf when the
+   function is created, we recommend that you include it as an explicit
+   dependency for clarity.
+
+   If your function relies on private dependencies, we recommend that you
+   mirror functions-framework to your private registry. Include the
+   mirrored functions-framework as a dependency to your function to avoid
+   installing the package from the public internet.
+
+Packaging local dependencies
+
+   You can also package and deploy dependencies alongside your function.
+   This approach is useful if your dependency is not available via the pip
+   package manager or if your Cloud Functions environment's internet
+   access is restricted.
+
+   Note: You can still use a requirements.txt file to specify additional
+   dependencies you haven't packaged alongside your function.
+
+   For example, you might use a directory structure such as the following:
+myfunction/
+├── main.py
+└── localpackage/
+    ├── __init__.py
+    └── script.py
+
+   You can then import the code as usual from localpackage using the
+   following import statement.
+# Code in main.py
+from localpackage import script
+
+   Note that this approach will not run any setup.py files. Packages with
+   those files can still be bundled, but may not run correctly on Cloud
+   Functions.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                     firebase_functions.firestore_fn module
+
+   Stay organized with collections Save and categorize content based on
+   your preferences.
+
+   Module for Cloud Functions that are triggered by Firestore.
+
+Classes
+
+AuthEvent
+
+   class firebase_functions.firestore_fn.AuthEvent(specversion: str, id:
+   str, source: str, type: str, time: datetime.datetime, data: T, subject:
+   str | None, location: str, project: str, database: str, namespace: str,
+   document: str, params: dict[str, str], auth_type:
+   Literal['service_account', 'api_key', 'system', 'unauthenticated',
+   'unknown'], auth_id: str | None)
+
+   Bases: [5446]Event[T]
+
+   auth_id: str | None
+          The unique identifier for the principal
+
+   auth_type: Literal['service_account', 'api_key', 'system',
+          'unauthenticated', 'unknown']
+          The type of principal that triggered the event
+
+Event
+
+   class firebase_functions.firestore_fn.Event(specversion: str, id: str,
+   source: str, type: str, time: datetime, data: T, subject: str | None,
+   location: str, project: str, database: str, namespace: str, document:
+   str, params: dict[str, str])
+
+   Bases: [5447]CloudEvent[T]
+
+   A CloudEvent that contains a DocumentSnapshot or a
+   Change<DocumentSnapshot>.
+
+   database: str
+          The Firestore database.
+
+   document: str
+          The document path.
+
+   location: str
+          The location of the database.
+
+   namespace: str
+          The Firestore namespace.
+
+   params: dict[str, str]
+          An dict containing the values of the path patterns. Only named
+          capture groups are populated - {key}, {key=*}, {key=**}
+
+   project: str
+          The project identifier.
+
+Functions
+
+on_document_created
+
+   firebase_functions.firestore_fn.on_document_created(**kwargs) →
+   Callable[[Callable[[[5448]Event[DocumentSnapshot | None]], None]],
+   Callable[[[5449]Event[DocumentSnapshot | None]], None]]
+
+   Event handler that triggers when a document is created in Firestore.
+
+   Example:
+@on_document_created(document="*")
+def example(event: Event[DocumentSnapshot]):
+  pass
+
+   Parameters:
+          **kwargs (as [5450]firebase_functions.options.FirestoreOptions)
+          -- Firestore options.
+
+   Return type:
+          typing.Callable [ [ [5451]firebase_functions.firestore_fn.Event
+          [ object ] ], None ] A function that takes a Firestore event and
+          returns None.
+
+on_document_created_with_auth_context
+
+   firebase_functions.firestore_fn.on_document_created_with_auth_context(*
+   *kwargs) → Callable[[Callable[[[5452]Event[DocumentSnapshot | None]],
+   None]], Callable[[[5453]Event[DocumentSnapshot | None]], None]]
+
+   Event handler that triggers when a document is created in Firestore.
+   This trigger will also provide the authentication context of the
+   principal who triggered the event.
+
+   Example:
+@on_document_created_with_auth_context(document="*")
+def example(event: AuthEvent[DocumentSnapshot]):
+  pass
+
+   Parameters:
+          **kwargs (as [5454]firebase_functions.options.FirestoreOptions)
+          -- Firestore options.
+
+   Return type:
+          typing.Callable [ [
+          [5455]firebase_functions.firestore_fn.AuthEvent [ object ] ],
+          None ] A function that takes a Firestore event and returns None.
+
+on_document_deleted
+
+   firebase_functions.firestore_fn.on_document_deleted(**kwargs) →
+   Callable[[Callable[[[5456]Event[DocumentSnapshot | None]], None]],
+   Callable[[[5457]Event[DocumentSnapshot | None]], None]]
+
+   Event handler that triggers when a document is deleted in Firestore.
+
+   Example:
+@on_document_deleted(document="*")
+def example(event: Event[DocumentSnapshot]) -> None:
+    pass
+
+   Parameters:
+          **kwargs (as [5458]firebase_functions.options.FirestoreOptions)
+          -- Firestore options.
+
+   Return type:
+          typing.Callable [ [ [5459]firebase_functions.firestore_fn.Event
+          [ object ] ], None ] A function that takes a Firestore event and
+          returns None.
+
+on_document_deleted_with_auth_context
+
+   firebase_functions.firestore_fn.on_document_deleted_with_auth_context(*
+   *kwargs) → Callable[[Callable[[[5460]Event[DocumentSnapshot | None]],
+   None]], Callable[[[5461]Event[DocumentSnapshot | None]], None]]
+
+   Event handler that triggers when a document is deleted in Firestore.
+   This trigger will also provide the authentication context of the
+   principal who triggered the event.
+
+   Example:
+@on_document_deleted_with_auth_context(document="*")
+def example(event: AuthEvent[DocumentSnapshot]) -> None:
+    pass
+
+   Parameters:
+          **kwargs (as [5462]firebase_functions.options.FirestoreOptions)
+          -- Firestore options.
+
+   Return type:
+          typing.Callable [ [
+          [5463]firebase_functions.firestore_fn.AuthEvent [ object ] ],
+          None ] A function that takes a Firestore event and returns None.
+
+on_document_updated
+
+   firebase_functions.firestore_fn.on_document_updated(**kwargs) →
+   Callable[[Callable[[[5464]Event[[5465]Change[DocumentSnapshot |
+   None]]], None]], Callable[[[5466]Event[[5467]Change[DocumentSnapshot |
+   None]]], None]]
+
+   Event handler that triggers when a document is updated in Firestore.
+
+   Example:
+@on_document_updated(document="*")
+def example(event: Event[Change[DocumentSnapshot]]) -> None:
+    pass
+
+   Parameters:
+          **kwargs (as [5468]firebase_functions.options.FirestoreOptions)
+          -- Firestore options.
+
+   Return type:
+          typing.Callable [ [ [5469]firebase_functions.firestore_fn.Event
+          [ firebase_functions.db.Change ] ], None ] A function that takes
+          a Firestore event and returns None.
+
+on_document_updated_with_auth_context
+
+   firebase_functions.firestore_fn.on_document_updated_with_auth_context(*
+   *kwargs) →
+   Callable[[Callable[[[5470]Event[[5471]Change[DocumentSnapshot |
+   None]]], None]], Callable[[[5472]Event[[5473]Change[DocumentSnapshot |
+   None]]], None]]
+
+   Event handler that triggers when a document is updated in Firestore.
+   This trigger will also provide the authentication context of the
+   principal who triggered the event.
+
+   Example:
+@on_document_updated_with_auth_context(document="*")
+def example(event: AuthEvent[Change[DocumentSnapshot]]) -> None:
+    pass
+
+   Parameters:
+          **kwargs (as [5474]firebase_functions.options.FirestoreOptions)
+          -- Firestore options.
+
+   Return type:
+          typing.Callable [ [
+          [5475]firebase_functions.firestore_fn.AuthEvent [
+          firebase_functions.db.Change ] ], None ] A function that takes a
+          Firestore event and returns None.
+
+on_document_written
+
+   firebase_functions.firestore_fn.on_document_written(**kwargs) →
+   Callable[[Callable[[[5476]Event[[5477]Change[DocumentSnapshot |
+   None]]], None]], Callable[[[5478]Event[[5479]Change[DocumentSnapshot |
+   None]]], None]]
+
+   Event handler that triggers when a document is created, updated, or
+   deleted in Firestore.
+
+   Example:
+@on_document_written(document="*")
+def example(event: Event[Change[DocumentSnapshot]]) -> None:
+    pass
+
+   Parameters:
+          **kwargs (as [5480]firebase_functions.options.FirestoreOptions)
+          -- Firestore options.
+
+   Return type:
+          typing.Callable [ [ [5481]firebase_functions.firestore_fn.Event
+          [ firebase_functions.db.Change ] ], None ] A function that takes
+          a Firestore event and returns None.
+
+on_document_written_with_auth_context
+
+   firebase_functions.firestore_fn.on_document_written_with_auth_context(*
+   *kwargs) →
+   Callable[[Callable[[[5482]Event[[5483]Change[DocumentSnapshot |
+   None]]], None]], Callable[[[5484]Event[[5485]Change[DocumentSnapshot |
+   None]]], None]]
+
+   Event handler that triggers when a document is created, updated, or
+   deleted in Firestore. This trigger will also provide the authentication
+   context of the principal who triggered the event.
+
+   Example:
+@on_document_written_with_auth_context(document="*")
+def example(event: AuthEvent[Change[DocumentSnapshot]]) -> None:
+    pass
+
+   Parameters:
+          **kwargs (as [5486]firebase_functions.options.FirestoreOptions)
+          -- Firestore options.
+
+   Return type:
+          typing.Callable [ [
+          [5487]firebase_functions.firestore_fn.AuthEvent [
+          firebase_functions.db.Change ] ], None ] A function that takes a
+          Firestore event and returns None.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        firebase_functions.logger module
+
+   Stay organized with collections Save and categorize content based on
+   your preferences.
+
+   Logger module for Firebase Functions.
+
+Classes
+
+LogEntry
+
+   class firebase_functions.logger.LogEntry
+
+   Bases: TypedDict
+
+   LogEntry represents a log entry. See [5446]LogEntry.
+
+   message: NotRequired[str]
+
+   severity: Required[[5447]LogSeverity]
+
+LogSeverity
+
+   class firebase_functions.logger.LogSeverity(value)
+
+   Bases: str, Enum
+
+   LogSeverity indicates the detailed severity of the log entry. See
+   LogSeverity
+   <https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#lo
+   gseverity>.
+
+   ALERT = 'ALERT'
+
+   CRITICAL = 'CRITICAL'
+
+   DEBUG = 'DEBUG'
+
+   EMERGENCY = 'EMERGENCY'
+
+   ERROR = 'ERROR'
+
+   INFO = 'INFO'
+
+   NOTICE = 'NOTICE'
+
+   WARNING = 'WARNING'
+
+Functions
+
+debug
+
+   firebase_functions.logger.debug(*args, **kwargs) → None
+
+   Logs a debug message.
+
+error
+
+   firebase_functions.logger.error(*args, **kwargs) → None
+
+   Logs an error message.
+
+info
+
+   firebase_functions.logger.info(*args, **kwargs) → None
+
+   Logs an info message.
+
+log
+
+   firebase_functions.logger.log(*args, **kwargs) → None
+
+   Logs a log message.
+
+warn
+
+   firebase_functions.logger.warn(*args, **kwargs) → None
+
+   Logs a warning message.
+
+write
+
+   firebase_functions.logger.write(entry: [5448]LogEntry) → None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        firebase_functions.params module
+
+   Stay organized with collections Save and categorize content based on
+   your preferences.
+
+   Module for params that can make Cloud Functions codebases generic.
+
+Classes
+
+BoolParam
+
+   class firebase_functions.params.BoolParam(name: str, default: _T |
+   [5446]Expression[_T] | None = None, label: str | None = None,
+   description: str | None = None, immutable: bool | None = None, input:
+   [5447]TextInput | [5448]ResourceInput | [5449]SelectInput[_T] |
+   [5450]MultiSelectInput | None = None)
+
+   Bases: [5451]Param[bool]
+
+   A parameter as a bool value.
+   property value: bool
+
+   Returns the Expression's runtime value, based on the CLI's resolution
+   of params.
+
+CompareExpression
+
+   class firebase_functions.params.CompareExpression(comparator: str,
+   left: [5452]Expression[_T], right: _T)
+
+   Bases: [5453]Expression[bool], Generic[_T]
+
+   A CEL expression that evaluates to boolean true or false based on a
+   comparison between the value of another expression and a literal of
+   that same type.
+
+   then(if_true: _T, if_false: _T) → [5454]TernaryExpression[_T]
+
+   comparator: str
+
+   left: [5455]Expression[_T]
+
+   right: _T
+
+   property value: bool
+
+   Returns the Expression's runtime value, based on the CLI's resolution
+   of params.
+
+Expression
+
+   class firebase_functions.params.Expression
+
+   Bases: ABC, Generic[_T]
+
+   A CEL expression which can be evaluated during function deployment, and
+   resolved to a value of the generic type parameter: i.e, you can pass an
+   Expression<number> as the value of an option that normally accepts
+   numbers.
+   property value: _T
+
+   Returns the Expression's runtime value, based on the CLI's resolution
+   of params.
+
+FloatParam
+
+   class firebase_functions.params.FloatParam(name: str, default: _T |
+   [5456]Expression[_T] | None = None, label: str | None = None,
+   description: str | None = None, immutable: bool | None = None, input:
+   [5457]TextInput | [5458]ResourceInput | [5459]SelectInput[_T] |
+   [5460]MultiSelectInput | None = None)
+
+   Bases: [5461]Param[float]
+
+   A parameter as a float value.
+   property value: float
+
+   Returns the Expression's runtime value, based on the CLI's resolution
+   of params.
+
+IntParam
+
+   class firebase_functions.params.IntParam(name: str, default: _T |
+   [5462]Expression[_T] | None = None, label: str | None = None,
+   description: str | None = None, immutable: bool | None = None, input:
+   [5463]TextInput | [5464]ResourceInput | [5465]SelectInput[_T] |
+   [5466]MultiSelectInput | None = None)
+
+   Bases: [5467]Param[int]
+
+   A parameter as a int value.
+   property value: int
+
+   Returns the Expression's runtime value, based on the CLI's resolution
+   of params.
+
+ListParam
+
+   class firebase_functions.params.ListParam(name: str, default: _T |
+   [5468]Expression[_T] | None = None, label: str | None = None,
+   description: str | None = None, immutable: bool | None = None, input:
+   [5469]TextInput | [5470]ResourceInput | [5471]SelectInput[_T] |
+   [5472]MultiSelectInput | None = None)
+
+   Bases: [5473]Param[list]
+
+   A parameter as a list of strings.
+   property value: list[str]
+
+   Returns the Expression's runtime value, based on the CLI's resolution
+   of params.
+
+MultiSelectInput
+
+   class firebase_functions.params.MultiSelectInput(options:
+   list[[5474]SelectOption[str]])
+
+   Bases: object
+
+   Specifies that a Param's value should be determined by having the user
+   select a subset from a list of pre-canned options interactively at
+   deploy-time. Will result in errors if used on Params of type other than
+   string[].
+
+   options: list[[5475]SelectOption[str]]
+          A list of user selectable options.
+
+Param
+
+   class firebase_functions.params.Param(name: str, default: _T |
+   [5476]Expression[_T] | None = None, label: str | None = None,
+   description: str | None = None, immutable: bool | None = None, input:
+   [5477]TextInput | [5478]ResourceInput | [5479]SelectInput[_T] |
+   [5480]MultiSelectInput | None = None)
+
+   Bases: [5481]Expression[_T]
+
+   A param is a declared dependency on an external value.
+
+   compare(compare: str, right: _T) → [5482]CompareExpression
+
+   equals(right: _T) → [5483]CompareExpression
+
+   default: _T | [5484]Expression[_T] | None = None
+          The default value to assign to this param if none provided.
+
+   description: str | None = None
+          Description of this param that is displayed to the user.
+
+   immutable: bool | None = None
+          Whether the value of this parameter can change between function
+          deployments.
+
+   input: [5485]TextInput | [5486]ResourceInput | [5487]SelectInput[_T] |
+          [5488]MultiSelectInput | None = None
+          The type of input that is required for this param, e.g.
+          TextInput.
+
+   label: str | None = None
+          A label that is displayed to the user for this param.
+
+   name: str
+          The environment variable of this parameter. Must be upper case.
+
+   property value: _T
+
+   Returns the Expression's runtime value, based on the CLI's resolution
+   of params.
+
+ResourceInput
+
+   class firebase_functions.params.ResourceInput(type: [5489]ResourceType
+   | str)
+
+   Bases: object
+
+   Specifies that a Param's value should be determined by having the user
+   select from a list containing all the project's resources of a certain
+   type. Currently, only type:"storage.googleapis.com/Bucket" is
+   supported.
+
+   type: [5490]ResourceType | str
+          "storage.googleapis.com/Bucket" is supported.
+
+        Type:
+                The resource type. Currently, only type
+
+ResourceType
+
+   class firebase_functions.params.ResourceType(value)
+
+   Bases: str, Enum
+
+   The type of resource that a picker should pick.
+
+   STORAGE_BUCKET = 'storage.googleapis.com/Bucket'
+
+SecretParam
+
+   class firebase_functions.params.SecretParam(name: str, label: str |
+   None = None, description: str | None = None, immutable: bool | None =
+   None)
+
+   Bases: [5491]Expression[str]
+
+   A secret param is a declared dependency on an external secret.
+
+   compare(compare: str, right: _T) → [5492]CompareExpression
+
+   equals(right: _T) → [5493]CompareExpression
+
+   description: str | None = None
+          Description of this param that is displayed to the user.
+
+   immutable: bool | None = None
+          Whether the value of this parameter can change between function
+          deployments.
+
+   label: str | None = None
+          A label that is displayed to the user for this param.
+
+   name: str
+          The environment variable of this parameter. Must be upper case.
+
+   property value: str
+
+   Current value of this parameter.
+
+SelectInput
+
+   class firebase_functions.params.SelectInput(options:
+   list[[5494]SelectOption[_T]])
+
+   Bases: Generic[_T]
+
+   Specifies that a Param's value should be determined by having the user
+   select from a list of pre-canned options interactively at deploy-time.
+
+   options: list[[5495]SelectOption[_T]]
+          A list of user selectable options.
+
+SelectOption
+
+   class firebase_functions.params.SelectOption(value: _T, label: str |
+   None = None)
+
+   Bases: Generic[_T]
+
+   A representation of an option that can be selected via a SelectInput.
+
+   label: str | None = None
+          The displayed label for the option.
+
+   value: _T
+          The value of the option.
+
+StringParam
+
+   class firebase_functions.params.StringParam(name: str, default: _T |
+   [5496]Expression[_T] | None = None, label: str | None = None,
+   description: str | None = None, immutable: bool | None = None, input:
+   [5497]TextInput | [5498]ResourceInput | [5499]SelectInput[_T] |
+   [5500]MultiSelectInput | None = None)
+
+   Bases: [5501]Param[str]
+
+   A parameter as a string value.
+   property value: str
+
+   Returns the Expression's runtime value, based on the CLI's resolution
+   of params.
+
+TernaryExpression
+
+   class firebase_functions.params.TernaryExpression(test:
+   [5502]Expression[bool], if_true: _T, if_false: _T)
+
+   Bases: [5503]Expression[_T], Generic[_T]
+
+   A CEL expression that evaluates to one of two values based on the value
+   of another expression.
+
+   if_false: _T
+
+   if_true: _T
+
+   test: [5504]Expression[bool]
+
+   property value: _T
+
+   Returns the Expression's runtime value, based on the CLI's resolution
+   of params.
+
+TextInput
+
+   class firebase_functions.params.TextInput(example: str | None = None,
+   validation_regex: str | None = None, validation_error_message: str |
+   None = None)
+
+   Bases: object
+
+   Specifies that a Param's value should be determined by prompting the
+   user to type it in interactively at deploy-time. Input that does not
+   match the provided validation_regex, if present, is retried.
+
+   example: str | None = None
+          An example of the input required that is displayed alongside the
+          input prompt.
+
+   validation_error_message: str | None = None
+          An error message that is displayed to the user if
+          validation_regex fails.
+
+   validation_regex: str | None = None
+          Validation regex for the input. Input that does not match this
+          regex, if present, is retried.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
