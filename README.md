@@ -37,13 +37,15 @@ The following table provides a high-level comparison of Firebase Choreographer w
 
 ## Installation
 
-To use Firebase Choreographer in your Firebase Functions project, install it via npm:
+There are two main ways to install and use Firebase Choreographer:
 
+**1. Using npm (Recommended for most projects):**
+
+Install the package into your Firebase Functions project:
 ```bash
 npm install firebase-choreographer
 ```
-
-Then, in your `functions/package.json`, add it as a dependency:
+Ensure it's listed as a dependency in your `functions/package.json`:
 ```json
 {
   "dependencies": {
@@ -51,14 +53,18 @@ Then, in your `functions/package.json`, add it as a dependency:
   }
 }
 ```
-And run `npm install` within your `functions` directory.
+Then run `npm install` within your `functions` directory if you manually edited `package.json`.
 
-Alternatively, for development or if you prefer to include the source directly (e.g., for "vibe-coding" with AI assistants, see below), you can clone the repository:
+**2. Cloning the Repository (For development or direct source inclusion):**
+
+This method is useful if you want to modify the package or include its source code directly in your project (e.g., for "vibe-coding" with AI assistants, as mentioned in the Motivation section).
+
 ```bash
 git clone https://github.com/kirilligum/firebase-choreographer.git
-# You can then copy the functions/firebase-choreographer and functions/task-watcher.js 
-# files into your project's functions directory.
 ```
+After cloning, you can:
+-   Navigate into the `firebase-choreographer/functions` directory and run `npm install` if you intend to use the example functions directly from the cloned repository.
+-   Or, copy the `functions/firebase-choreographer` directory and the `functions/task-watcher.js` file into your own project's `functions` directory. You would then import them using relative paths.
 
 ## Setup Firebase CLI and Running with Emulator
 
