@@ -5,7 +5,7 @@ const {
   createTaskWatcher,
   createChildTasks,
   DependencyNotReadyError,
-} = require("./firebase-promise");
+} = require("./firebase-choreographer");
 
 // Initialize Admin & Choreographer
 if (!admin.apps.length) admin.initializeApp();
