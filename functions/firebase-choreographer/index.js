@@ -2,7 +2,7 @@ const {
   wrapTaskWithOrchestration,
   createChildTasks,
   DependencyNotReadyError,
-} = require("./orchestration-utils");
+} = require("./utils");
  // Lazy-load createTaskWatcher to avoid circular dependency
 const createTaskWatcher = (...args) => require("../task-watcher").createTaskWatcher(...args);
 

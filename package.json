@@ -2,11 +2,11 @@
   "name": "firebase-choreographer",
   "version": "1.0.0",
   "description": "A minimal standalone package for managing asynchronous tasks in Cloud Firestore using Firebase Functions.",
-  "main": "functions/firebase-promise/index.js",
+  "main": "functions/firebase-choreographer/index.js",
   "files": [
     "README.md",
     "LICENSE",
-    "functions/firebase-promise/",
+    "functions/firebase-choreographer/",
     "functions/task-watcher.js"
   ],
   "scripts": {

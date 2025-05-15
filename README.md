@@ -88,7 +88,7 @@ You should see emulator logs showing Task A processing, spawning Tasks B & C, an
 
 ## Project Structure
 
-- `functions/firebase-promise` ‑ Core package code  
+- `functions/firebase-choreographer` ‑ Core package code  
 - `functions/task-watcher.js` ‑ Firestore trigger setup  
 - `functions/choreographer-example.js` ‑ Example showing A → (B, C) → D  
 - `firestore.rules` ‑ Security rules for the `tasks` collection  

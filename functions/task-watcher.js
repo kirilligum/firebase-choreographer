@@ -1,11 +1,11 @@
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
-const firebasePromise = require("./firebase-promise");
-const { _getDbInstance, _getLoggerInstance } = require("./firebase-promise");
+const firebasePromise = require("./firebase-choreographer");
+const { _getDbInstance, _getLoggerInstance } = require("./firebase-choreographer");
 const {
   wrapTaskWithOrchestration,
   createChildTasks,
   DependencyNotReadyError,
-} = require("./firebase-promise/orchestration-utils");
+} = require("./firebase-choreographer/utils");
 
 /**
  * Creates a Firestore trigger function with default or overridden path.
@@ -14,7 +14,7 @@ const {
  *   mapping task IDs (exact or prefix) → { handler: Function, dependencies: string[], prefix?: boolean }.
  * @param {object} [options]
  *   { pathPattern?: string, globalFunctionOptions?: {timeoutSeconds, memory, ...} }.
- *   pathPattern overrides default set via initializeTaskManager.
+ *   pathPattern overrides default set via initializeChoreographer.
  */
 function createTaskWatcher(userTaskHandlers, options = {}) {
   const { pathPattern, globalFunctionOptions = {} } = options;
