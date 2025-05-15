@@ -141,11 +141,6 @@ exports.taskManager = createTaskWatcher(userTaskHandlers, {
 });
 ```
 
-## Next Steps
-
-- Secure Firestore rules for production.  
-- Import this package into your own Functions project.  
-- Customize the `tasksPathPattern` option in `initializeTaskManager` to target different collections.
 
 ## API Reference
 
