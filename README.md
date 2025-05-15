@@ -1,22 +1,22 @@
-# Firebase Task Manager
+# Firebase Choreographer
 
 A minimal standalone package for managing asynchronous tasks in Cloud Firestore using Firebase Functions.
 
 ## Motivation
 
-Firebase Task Manager (FTM) offers several key advantages for building robust and maintainable task-driven workflows:
+Firebase Choreographer offers several key advantages for building robust and maintainable task-driven workflows:
 
 *   **Persistent State**: Task states are durably stored in Firestore. If a function instance crashes or your system restarts, tasks can resume from where they left off simply by updating their status in Firestore. This ensures that no work is lost and workflows can reliably continue.
-*   **Scalable Architecture**: Built on Firestore and Cloud Functions, FTM is designed for horizontal scalability. Firestore handles state management at scale, and Cloud Functions can process a high volume of tasks concurrently, allowing your workflows to grow with demand.
-*   **LLM-Friendly "Vibe-Coding"**: The core FTM codebase is tiny (classified as "tiny" in terms of code size that an LLM might need to consider). This small footprint means the essential logic of the library can be easily understood and managed within the context window of modern Large Language Models (LLMs). This makes it exceptionally conducive for AI coding assistants to understand, modify, and generate FTM-compatible code, facilitating a more intuitive "vibe-coding" experience.
+*   **Scalable Architecture**: Built on Firestore and Cloud Functions, Firebase Choreographer is designed for horizontal scalability. Firestore handles state management at scale, and Cloud Functions can process a high volume of tasks concurrently, allowing your workflows to grow with demand.
+*   **LLM-Friendly "Vibe-Coding"**: The core Firebase Choreographer codebase is tiny (classified as "tiny" in terms of code size that an LLM might need to consider). This small footprint means the essential logic of the library can be easily understood and managed within the context window of modern Large Language Models (LLMs). This makes it exceptionally conducive for AI coding assistants to understand, modify, and generate Firebase Choreographer-compatible code, facilitating a more intuitive "vibe-coding" experience.
 
 ### Comparison with Other Workflow Engines
 
-The following table provides a high-level comparison of FTM with other popular workflow orchestration and task management frameworks:
+The following table provides a high-level comparison of Firebase Choreographer with other popular workflow orchestration and task management frameworks:
 
 | Framework                        | Persisted Task State                                  | Age (Year) | Examples (small/large) | Code Size        | Deployment           | Linear Scalability          | Robustness                                      | Language | Declaration Style |
 |----------------------------------|-------------------------------------------------------|------------|------------------------|------------------|----------------------|-----------------------------|-------------------------------------------------|----------|-------------------|
-| Firebase Task Manager (FTM)      | Yes – Firestore docs survive restarts                  | 2023       | small                  | tiny             | serverless           | Yes – Firestore             | Geo-replicated; Functions auto-retry             | JS       | edge              |
+| Firebase Choreographer           | Yes – Firestore docs survive restarts                  | 2023       | small                  | tiny             | serverless           | Yes – Firestore             | Geo-replicated; Functions auto-retry             | JS       | edge              |
 | BullMQ (Redis)                   | Yes – job state in Redis persists across restarts      | 2018       | large                  | large            | free self-hosted     | Yes – Redis                 | Redis clustering & master-replica               | JS       | queue             |
 | AWS Step Functions               | Yes – SFN service stores step state                    | 2016       | large                  | closed           | serverless           | Yes – SFN service           | Multi-AZ durability & step-by-step replay        | JSON     | graph             |
 | GCP Workflows                    | Yes – Workflows service persists each step’s state     | 2021       | large                  | closed           | serverless           | Yes – Workflows service     | Regional durability; optional multi-region      | YAML     | graph             |
@@ -38,8 +38,8 @@ The following table provides a high-level comparison of FTM with other popular w
 ## Installation
 
 ```bash
-git clone https://github.com/your-org/firebase-task-manager.git
-cd firebase-task-manager
+git clone https://github.com/your-org/firebase-choreographer.git
+cd firebase-choreographer
 npm install
 cd functions
 npm install
@@ -98,12 +98,12 @@ You should see emulator logs showing Task A processing, spawning Tasks B & C, an
 
 ### Initialization
 
-Import and initialize the Task Manager in your Functions entrypoint:
+Import and initialize the Choreographer in your Functions entrypoint:
 
 ```js
 const admin = require('firebase-admin');
 const { logger } = require('firebase-functions');
-const { initializeTaskManager, createTaskWatcher } = require('firebase-task-manager');
+const { initializeTaskManager, createTaskWatcher } = require('firebase-choreographer');
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -146,7 +146,7 @@ exports.taskManager = createTaskWatcher(userTaskHandlers, {
 
 ### initializeTaskManager(adminApp, options)
 
-Initializes the Task Manager with your Firebase Admin SDK and configuration.
+Initializes the Choreographer with your Firebase Admin SDK and configuration.
 
 - **adminApp**: Firebase Admin instance.  
 - **options.logger**: Optional logger (e.g. `functions.logger`).  
@@ -199,7 +199,7 @@ service cloud.firestore {
 ### Importing the Package in Cloud Functions
 
 ```js
-const { initializeTaskManager, createTaskWatcher } = require('firebase-task-manager');
+const { initializeTaskManager, createTaskWatcher } = require('firebase-choreographer');
 ```
 
 ## Contributing

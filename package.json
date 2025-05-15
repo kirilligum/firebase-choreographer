@@ -1,5 +1,5 @@
 {
-  "name": "firebase-task-manager",
+  "name": "firebase-choreographer",
   "version": "1.0.0",
   "description": "A minimal standalone package for managing asynchronous tasks in Cloud Firestore using Firebase Functions.",
   "main": "functions/firebase-promise/index.js",
@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-org/firebase-task-manager.git"
+    "url": "git+https://github.com/your-org/firebase-choreographer.git"
   },
   "keywords": [
     "firebase",
@@ -31,7 +31,7 @@
   "author": "Kirill Igumenshchev",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/your-org/firebase-task-manager/issues"
+    "url": "https://github.com/your-org/firebase-choreographer/issues"
   },
-  "homepage": "https://github.com/your-org/firebase-task-manager#readme"
+  "homepage": "https://github.com/your-org/firebase-choreographer#readme"
 }

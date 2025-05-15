@@ -10,7 +10,7 @@ let dbInstance;
 let packageLoggerInstance = console;
 
 /**
- * Initializes the Firebase Task Manager package.
+ * Initializes the Firebase Choreographer package.
  * @param {object} adminInstance - The initialized Firebase Admin SDK instance.
  * @param {object} options - Configuration options:
  *                           { logger?: object, tasksPathPattern: string }.
